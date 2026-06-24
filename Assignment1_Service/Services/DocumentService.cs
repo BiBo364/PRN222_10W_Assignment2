@@ -237,21 +237,16 @@ public class DocumentService : IDocumentService
         if (user is null)
             return (false, "Không tìm thấy người dùng.");
 
-        if (user.RoleId == 1)
-            return (true, null);
+        if (user.RoleId != 2)
+            return (false, "Bạn không có quyền upload tài liệu.");
 
-        if (user.RoleId == 2)
-        {
-            if (!user.SubjectId.HasValue)
-                return (false, "Bạn chưa được gán môn học.");
+        if (!user.SubjectId.HasValue)
+            return (false, "Bạn chưa được gán môn học.");
 
-            if (user.SubjectId.Value != subjectId)
-                return (false, "Bạn chỉ được phép upload tài liệu cho môn học được gán.");
+        if (user.SubjectId.Value != subjectId)
+            return (false, "Bạn chỉ được phép upload tài liệu cho môn học được gán.");
 
-            return (true, null);
-        }
-
-        return (false, "Bạn không có quyền upload tài liệu.");
+        return (true, null);
     }
 
     private async Task IndexDocumentContentAsync(Document document, string filePath, string webRoot)
