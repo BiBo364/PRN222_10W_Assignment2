@@ -6,6 +6,7 @@ using ClosedXML.Excel;
 using CsvHelper;
 using CsvHelper.Configuration;
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 
 namespace Assignment1_Service.Services;
@@ -13,7 +14,11 @@ namespace Assignment1_Service.Services;
 public class UserServices : IUserServices
 {
     public const string DefaultPassword = "1234567";
-    private const int TeacherRoleId = 2;
+    private const int LecturerRoleId = 2;
+    private const int StudentRoleId = 3;
+    private const int MaxGeneratedUsernameLength = 50;
+    private const string LecturerEmailDomain = "edu.vn";
+    private const string StudentEmailDomain = "fpt.edu.vn";
 
     private readonly IUserReposity _userRepository;
     private readonly ISubjectRepository _subjectRepository;
@@ -101,57 +106,35 @@ public class UserServices : IUserServices
             throw new Exception($"Loi khi phan tich file: {ex.Message}");
         }
 
+        if (roleId is not LecturerRoleId and not StudentRoleId)
+            throw new InvalidOperationException("Chi ho tro import giang vien hoac hoc sinh/sinh vien.");
+
+        var importSubjectId = roleId == LecturerRoleId ? subjectId : null;
         var assignedTeacherSubjectsInBatch = new HashSet<int>();
 
         foreach (var rowResult in rows)
         {
             result.TotalRows++;
 
-            if (string.IsNullOrWhiteSpace(rowResult.Email))
-            {
-                MarkError(rowResult, result, "Email khong duoc de trong.");
-                continue;
-            }
-
-            if (!IsValidEmail(rowResult.Email))
-            {
-                MarkError(rowResult, result, $"Email '{rowResult.Email}' khong hop le.");
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(rowResult.FullName))
+            var fullName = NormalizeFullName(rowResult.FullName);
+            if (fullName is null)
             {
                 MarkError(rowResult, result, "Ho ten khong duoc de trong.");
                 continue;
             }
 
-            var existing = await _userRepository.GetByEmailAsync(rowResult.Email);
-            if (existing is not null)
+            rowResult.FullName = fullName;
+
+            if (roleId == LecturerRoleId && importSubjectId.HasValue)
             {
-                rowResult.Status = ImportRowStatus.Duplicate;
-                rowResult.Message = $"Email '{rowResult.Email}' da ton tai (username: {existing.Username}).";
-                result.SkippedDuplicateCount++;
-                result.Rows.Add(rowResult);
-                continue;
-            }
-
-            var username = string.IsNullOrWhiteSpace(rowResult.Username)
-                ? GenerateUsername(rowResult.Email)
-                : rowResult.Username;
-
-            username = await EnsureUniqueUsernameAsync(username);
-            rowResult.Username = username;
-
-            if (roleId == TeacherRoleId && subjectId.HasValue)
-            {
-                if (!assignedTeacherSubjectsInBatch.Add(subjectId.Value))
+                if (!assignedTeacherSubjectsInBatch.Add(importSubjectId.Value))
                 {
                     MarkError(rowResult, result, "Mon hoc nay da duoc chon cho giang vien khac trong cung file import.");
                     continue;
                 }
 
                 var (isAvailable, availabilityError) = await ValidateTeacherSubjectAssignmentAsync(
-                    subjectId.Value,
+                    importSubjectId.Value,
                     excludeUserId: null);
 
                 if (!isAvailable)
@@ -161,14 +144,18 @@ public class UserServices : IUserServices
                 }
             }
 
+            var (username, email) = await GenerateUniqueAccountIdentityAsync(fullName, roleId);
+            rowResult.Username = username;
+            rowResult.Email = email;
+
             var newUser = new User
             {
                 Username = username,
-                Email = rowResult.Email.ToLowerInvariant(),
-                FullName = rowResult.FullName,
+                Email = email,
+                FullName = fullName,
                 Password = DefaultPassword,
                 RoleId = roleId,
-                SubjectId = subjectId,
+                SubjectId = importSubjectId,
                 IsActive = true,
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now
@@ -212,15 +199,17 @@ public class UserServices : IUserServices
         var worksheet = workbook.Worksheets.First();
         var lastRowUsed = worksheet.LastRowUsed()?.RowNumber() ?? 1;
 
-        for (int rowNum = 2; rowNum <= lastRowUsed; rowNum++)
+        for (int rowNum = 1; rowNum <= lastRowUsed; rowNum++)
         {
             var row = worksheet.Row(rowNum);
+            var fullName = row.Cell(1).GetString()?.Trim();
+            if (ShouldSkipImportedName(fullName))
+                continue;
+
             rows.Add(new ImportRowResultDto
             {
                 RowNumber = rowNum,
-                FullName = row.Cell(1).GetString()?.Trim(),
-                Email = row.Cell(2).GetString()?.Trim(),
-                Username = row.Cell(3).GetString()?.Trim()
+                FullName = fullName
             });
         }
 
@@ -233,26 +222,25 @@ public class UserServices : IUserServices
         using var reader = new StreamReader(stream);
         using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
         {
-            HasHeaderRecord = true,
+            HasHeaderRecord = false,
             TrimOptions = TrimOptions.Trim,
             MissingFieldFound = null,
             BadDataFound = null
         });
 
-        var rowNum = 2;
-        if (csv.Read())
+        var rowNum = 0;
+        while (csv.Read())
         {
-            csv.ReadHeader();
-            while (csv.Read())
+            rowNum++;
+            var fullName = csv.TryGetField(0, out string? value) ? value?.Trim() : null;
+            if (ShouldSkipImportedName(fullName))
+                continue;
+
+            rows.Add(new ImportRowResultDto
             {
-                rows.Add(new ImportRowResultDto
-                {
-                    RowNumber = rowNum++,
-                    FullName = csv.GetField(0),
-                    Email = csv.GetField(1),
-                    Username = csv.TryGetField(2, out string? username) ? username : null
-                });
-            }
+                RowNumber = rowNum,
+                FullName = fullName
+            });
         }
 
         return rows;
@@ -262,24 +250,35 @@ public class UserServices : IUserServices
     {
         using var reader = new StreamReader(stream);
         var json = reader.ReadToEnd();
-        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-        var data = JsonSerializer.Deserialize<List<JsonImportRow>>(json, options) ?? [];
+        using var document = JsonDocument.Parse(json);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+            throw new InvalidOperationException("File JSON phai la mot mang danh sach nguoi dung.");
 
-        var rowNum = 2;
-        return data.Select(item => new ImportRowResultDto
+        var rows = new List<ImportRowResultDto>();
+        var rowNum = 1;
+        foreach (var element in document.RootElement.EnumerateArray())
         {
-            RowNumber = rowNum++,
-            FullName = item.FullName,
-            Email = item.Email,
-            Username = item.Username
-        }).ToList();
-    }
+            var fullName = element.ValueKind switch
+            {
+                JsonValueKind.String => element.GetString(),
+                JsonValueKind.Object => GetJsonString(element, "FullName", "Name", "HoTen", "HoVaTen"),
+                _ => null
+            };
 
-    private class JsonImportRow
-    {
-        public string? FullName { get; set; }
-        public string? Email { get; set; }
-        public string? Username { get; set; }
+            if (ShouldSkipImportedName(fullName))
+            {
+                rowNum++;
+                continue;
+            }
+
+            rows.Add(new ImportRowResultDto
+            {
+                RowNumber = rowNum++,
+                FullName = fullName?.Trim()
+            });
+        }
+
+        return rows;
     }
 
     private List<ImportRowResultDto> ParseTxt(Stream stream)
@@ -287,29 +286,22 @@ public class UserServices : IUserServices
         var rows = new List<ImportRowResultDto>();
         using var reader = new StreamReader(stream);
 
-        var headerLine = reader.ReadLine();
-        if (headerLine is null)
-            return rows;
-
-        var separator = headerLine.Contains('\t') ? '\t' : headerLine.Contains('|') ? '|' : ',';
-        var rowNum = 2;
-
+        var rowNum = 0;
         while (!reader.EndOfStream)
         {
             var line = reader.ReadLine();
+            rowNum++;
             if (string.IsNullOrWhiteSpace(line))
                 continue;
 
-            var parts = line.Split(separator);
-            if (parts.Length < 2)
+            var fullName = ExtractFirstTextColumn(line);
+            if (ShouldSkipImportedName(fullName))
                 continue;
 
             rows.Add(new ImportRowResultDto
             {
-                RowNumber = rowNum++,
-                FullName = parts[0].Trim(),
-                Email = parts[1].Trim(),
-                Username = parts.Length > 2 ? parts[2].Trim() : null
+                RowNumber = rowNum,
+                FullName = fullName
             });
         }
 
@@ -322,21 +314,21 @@ public class UserServices : IUserServices
         if (user is null)
             return (false, "Khong tim thay nguoi dung.");
 
+        if (user.RoleId != LecturerRoleId)
+            return (false, "Chi co the gan mon hoc cho giang vien.");
+
         if (subjectId.HasValue)
         {
             var subject = await _subjectRepository.GetByIdWithDetailsAsync(subjectId.Value);
             if (subject is null)
                 return (false, "Khong tim thay mon hoc.");
 
-            if (user.RoleId == TeacherRoleId)
-            {
-                var (isAvailable, availabilityError) = await ValidateTeacherSubjectAssignmentAsync(
-                    subjectId.Value,
-                    excludeUserId: userId);
+            var (isAvailable, availabilityError) = await ValidateTeacherSubjectAssignmentAsync(
+                subjectId.Value,
+                excludeUserId: userId);
 
-                if (!isAvailable)
-                    return (false, availabilityError);
-            }
+            if (!isAvailable)
+                return (false, availabilityError);
         }
 
         user.SubjectId = subjectId;
@@ -420,42 +412,120 @@ public class UserServices : IUserServices
         result.Rows.Add(rowResult);
     }
 
-    private static string GenerateUsername(string email)
+    private async Task<(string Username, string Email)> GenerateUniqueAccountIdentityAsync(string fullName, int roleId)
     {
-        var local = email.Split('@')[0]
-            .ToLowerInvariant()
-            .Replace(".", "")
-            .Replace("-", "")
-            .Replace("_", "");
+        var baseUsername = GenerateUsername(fullName);
+        var counter = 0;
 
-        return local.Length > 50 ? local[..50] : local;
-    }
-
-    private async Task<string> EnsureUniqueUsernameAsync(string baseUsername)
-    {
-        var candidate = baseUsername;
-        var counter = 1;
-
-        while (await _userRepository.GetByUsernameAsync(candidate) is not null)
+        while (true)
         {
-            candidate = $"{baseUsername}{counter}";
+            var suffix = counter == 0 ? string.Empty : counter.ToString(CultureInfo.InvariantCulture);
+            var maxBaseLength = Math.Max(1, MaxGeneratedUsernameLength - suffix.Length);
+            var usernameBase = baseUsername.Length > maxBaseLength ? baseUsername[..maxBaseLength] : baseUsername;
+            var username = $"{usernameBase}{suffix}";
+            var email = GenerateEmail(username, roleId);
+
+            if (await _userRepository.GetByUsernameAsync(username) is null
+                && await _userRepository.GetByEmailAsync(email) is null)
+            {
+                return (username, email);
+            }
+
             counter++;
         }
-
-        return candidate;
     }
 
-    private static bool IsValidEmail(string email)
+    private static string GenerateUsername(string fullName)
     {
-        try
+        var normalized = RemoveDiacritics(fullName).ToLowerInvariant();
+        var builder = new StringBuilder(normalized.Length);
+
+        foreach (var character in normalized)
         {
-            var addr = new System.Net.Mail.MailAddress(email);
-            return addr.Address == email;
+            if (char.IsLetterOrDigit(character))
+                builder.Append(character);
         }
-        catch
+
+        var username = builder.Length == 0 ? "user" : builder.ToString();
+        return username.Length > MaxGeneratedUsernameLength
+            ? username[..MaxGeneratedUsernameLength]
+            : username;
+    }
+
+    private static string GenerateEmail(string username, int roleId)
+    {
+        var domain = roleId switch
         {
-            return false;
+            LecturerRoleId => LecturerEmailDomain,
+            StudentRoleId => StudentEmailDomain,
+            _ => throw new InvalidOperationException("Vai tro import khong hop le.")
+        };
+
+        return $"{username}@{domain}";
+    }
+
+    private static string? NormalizeFullName(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
+            return null;
+
+        var normalized = string.Join(
+            ' ',
+            fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
+    private static string RemoveDiacritics(string value)
+    {
+        value = value.Replace('đ', 'd').Replace('Đ', 'D');
+        var normalized = value.Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(normalized.Length);
+
+        foreach (var character in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)
+                builder.Append(character);
         }
+
+        return builder.ToString().Normalize(NormalizationForm.FormC);
+    }
+
+    private static string? ExtractFirstTextColumn(string line)
+    {
+        var separator = line.Contains('\t') ? '\t' : line.Contains('|') ? '|' : line.Contains(',') ? ',' : (char?)null;
+        return separator.HasValue
+            ? line.Split(separator.Value)[0].Trim()
+            : line.Trim();
+    }
+
+    private static bool ShouldSkipImportedName(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return true;
+
+        var normalized = RemoveDiacritics(value)
+            .ToLowerInvariant()
+            .Replace(" ", string.Empty)
+            .Replace("_", string.Empty)
+            .Replace("-", string.Empty);
+
+        return normalized is "fullname" or "name" or "hoten" or "hovaten";
+    }
+
+    private static string? GetJsonString(JsonElement element, params string[] propertyNames)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            if (!propertyNames.Any(name => string.Equals(name, property.Name, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            return property.Value.ValueKind == JsonValueKind.String
+                ? property.Value.GetString()
+                : property.Value.ToString();
+        }
+
+        return null;
     }
 
     private static string? ValidateNewPassword(string newPassword, string currentPassword)

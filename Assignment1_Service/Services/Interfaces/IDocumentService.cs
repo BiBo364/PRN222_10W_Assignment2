@@ -12,7 +12,9 @@ public interface IDocumentService
         int subjectId,
         int? chapterId,
         int userId);
-    Task<bool> DeleteDocumentAsync(int id, string storageRoot, string contentRoot, string webRoot);
+    Task<bool> DeleteDocumentAsync(int id, string storageRoot, string contentRoot, string webRoot, int? deletedByUserId = null);
+    Task<List<DocumentListItemDto>> GetDeletedDocumentsAsync();
+    Task<bool> RestoreDocumentAsync(int id);
     Task<(DocumentUploadResultDto? Result, string? Error)> ReindexDocumentAsync(
         int id,
         int userId,

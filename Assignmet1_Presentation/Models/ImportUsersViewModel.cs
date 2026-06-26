@@ -5,13 +5,13 @@ namespace Assignmet1_Presentation.Models;
 
 public class ImportUsersViewModel
 {
-    [Required(ErrorMessage = "Vui long chon file (.xlsx, .csv).")]
+    [Required(ErrorMessage = "Vui long chon file (.xlsx, .csv, .json hoac .txt).")]
     [Display(Name = "File danh sach nguoi dung")]
     public IFormFile? File { get; set; }
 
     [Display(Name = "Vai tro")]
     [Required(ErrorMessage = "Vui long chon vai tro.")]
-    public int RoleId { get; set; }
+    public int RoleId { get; set; } = 3;
 
     [Display(Name = "Mon hoc")]
     public int? SubjectId { get; set; }

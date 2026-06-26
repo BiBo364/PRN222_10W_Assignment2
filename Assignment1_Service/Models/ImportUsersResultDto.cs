@@ -1,7 +1,7 @@
 namespace Assignment1_Service.Models;
 
 /// <summary>
-/// Ket qua import nguoi dung tu file Excel/CSV.
+/// Ket qua import nguoi dung tu file danh sach ho ten.
 /// </summary>
 public class ImportUsersResultDto
 {
@@ -11,7 +11,7 @@ public class ImportUsersResultDto
     /// <summary>So tai khoan tao thanh cong.</summary>
     public int CreatedCount { get; set; }
 
-    /// <summary>So dong bi bo qua vi email da ton tai.</summary>
+    /// <summary>So dong bi bo qua vi trung lap khong the xu ly.</summary>
     public int SkippedDuplicateCount { get; set; }
 
     /// <summary>So dong loi.</summary>

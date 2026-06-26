@@ -10,4 +10,6 @@ public interface ISubjectRepository
     Task<Subject> AddAsync(Subject subject);
     Task UpdateAsync(Subject subject);
     Task<bool> DeleteAsync(int id);
+    Task<List<Subject>> GetDeletedSubjectsAsync();
+    Task<bool> RestoreSubjectAsync(int id);
 }

@@ -6,4 +6,5 @@ public class SubjectDetailViewModel
     public List<DocumentListItemViewModel> Documents { get; set; } = [];
     public bool CanCreateSubject { get; set; }
     public bool CanUploadDocument { get; set; }
+    public bool CanDeleteDocument { get; set; }
 }

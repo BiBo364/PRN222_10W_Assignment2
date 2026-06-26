@@ -9,6 +9,8 @@ public interface IDocumentRepository
     Task<Document> AddDocumentAsync(Document document);
     Task UpdateDocumentAsync(Document document);
     Task DeleteDocumentAsync(int id);
+    Task<List<Document>> GetDeletedDocumentsAsync();
+    Task<bool> RestoreDocumentAsync(int id);
     Task<Subject?> GetFirstSubjectWithChaptersAsync();
     Task<EmbeddingModel?> GetFirstEmbeddingModelAsync();
     Task<List<EmbeddingModel>> GetEmbeddingModelsAsync();

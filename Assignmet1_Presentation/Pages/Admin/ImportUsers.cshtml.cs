@@ -44,6 +44,15 @@ public class ImportUsersModel : PageModel
         if (!ModelState.IsValid)
             return Page();
 
+        if (Input.RoleId is not 2 and not 3)
+        {
+            ModelState.AddModelError(nameof(Input.RoleId), "Chi ho tro import giang vien hoac hoc sinh/sinh vien.");
+            return Page();
+        }
+
+        if (Input.RoleId != 2)
+            Input.SubjectId = null;
+
         if (Input.RoleId == 2 && Input.SubjectId.HasValue)
         {
             var (isAvailable, availabilityError) = await _userServices.ValidateTeacherSubjectAvailabilityAsync(

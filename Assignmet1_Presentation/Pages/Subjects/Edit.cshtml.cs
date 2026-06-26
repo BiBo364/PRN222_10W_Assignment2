@@ -1,4 +1,4 @@
-﻿using Assignment1_Service.Services.Interfaces;
+using Assignment1_Service.Services.Interfaces;
 using Assignmet1_Presentation.Filters;
 using Assignmet1_Presentation.Hubs;
 using Assignmet1_Presentation.Mappings;
@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.SignalR;
 namespace Assignmet1_Presentation.Pages.Subjects;
 [RequireLogin]
-[RequireTeacher]
+[RequireAdmin]
 public class EditModel : PageModel
 {
     private readonly ISubjectService _subjectService;

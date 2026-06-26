@@ -56,14 +56,17 @@ public static class DtoMapper
         Id = document.Id,
         OriginalName = document.OriginalName,
         FileType = document.FileType,
-        Status = document.Status,
+        Status = document.Status ?? "unknown",
         ErrorMsg = document.ErrorMsg,
         ChunkCount = document.Chunks.Count,
         SubjectId = document.SubjectId,
+        SubjectCode = document.Subject?.Code,
         ChapterNumber = document.Chapter?.Number,
         ChapterTitle = document.Chapter?.Title,
         CreatedAt = document.CreatedAt,
-        IndexedAt = document.IndexedAt
+        IndexedAt = document.IndexedAt,
+        DeletedAt = document.DeletedAt,
+        DeletedByName = document.DeletedByNavigation?.FullName ?? document.DeletedByNavigation?.Username
     };
 
     public static DocumentDetailDto ToDetailDto(Document document) => new()
@@ -72,7 +75,7 @@ public static class DtoMapper
         SubjectId = document.SubjectId,
         OriginalName = document.OriginalName,
         FileType = document.FileType,
-        Status = document.Status,
+        Status = document.Status ?? "unknown",
         ErrorMsg = document.ErrorMsg,
         ChapterNumber = document.Chapter?.Number,
         ChapterTitle = document.Chapter?.Title,

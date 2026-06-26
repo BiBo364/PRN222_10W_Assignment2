@@ -26,6 +26,8 @@ public static class DatabaseSchemaSynchronizer
 
             await SyncColumnsAsync(context, entityType, schema, tableName);
         }
+
+        await NormalizeSoftDeleteColumnsAsync(context);
     }
 
     private static async Task CreateTableAsync(
@@ -114,6 +116,27 @@ public static class DatabaseSchemaSynchronizer
 
             await context.Database.ExecuteSqlRawAsync(sql.ToString());
         }
+    }
+
+    private static async Task NormalizeSoftDeleteColumnsAsync(RagEduContext context)
+    {
+        await NormalizeSoftDeleteColumnAsync(context, "dbo", "documents");
+        await NormalizeSoftDeleteColumnAsync(context, "dbo", "subjects");
+    }
+
+    private static async Task NormalizeSoftDeleteColumnAsync(
+        RagEduContext context,
+        string schema,
+        string tableName)
+    {
+        if (!await TableExistsAsync(context, schema, tableName)
+            || !await ColumnExistsAsync(context, schema, tableName, "is_deleted"))
+        {
+            return;
+        }
+
+        var sql = "UPDATE [" + schema + "].[" + tableName + "] SET [is_deleted] = 0 WHERE [is_deleted] IS NULL;";
+        await context.Database.ExecuteSqlRawAsync(sql);
     }
 
     private static string BuildColumnDefinition(

@@ -37,7 +37,9 @@ public class DetailsModel : PageModel
             Subject = ViewModelMapper.ToViewModel(subject.Subject),
             Documents = subject.Documents.Select(ViewModelMapper.ToViewModel).ToList(),
             CanCreateSubject = DocumentPermissions.CanManageSubjects(roleId),
-            CanUploadDocument = DocumentPermissions.CanUploadToSubject(roleId, userSubjectId, id)
+            CanUploadDocument = DocumentPermissions.CanUploadToSubject(roleId, userSubjectId, id),
+            CanDeleteDocument = DocumentPermissions.CanDelete(roleId)
+                && DocumentPermissions.CanUploadToSubject(roleId, userSubjectId, id)
         };
 
         return Page();

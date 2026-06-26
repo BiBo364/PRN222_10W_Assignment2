@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
@@ -298,6 +298,13 @@ public partial class RagEduContext : DbContext
             entity.Property(e => e.SubjectId).HasColumnName("subject_id");
             entity.Property(e => e.UploadedBy).HasColumnName("uploaded_by");
 
+            // Soft-delete fields
+            entity.Property(e => e.IsDeleted)
+                .HasDefaultValue(false)
+                .HasColumnName("is_deleted");
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+            entity.Property(e => e.DeletedBy).HasColumnName("deleted_by");
+
             entity.HasOne(d => d.Chapter).WithMany(p => p.Documents)
                 .HasForeignKey(d => d.ChapterId)
                 .HasConstraintName("FK__documents__chapt__5070F446");
@@ -309,6 +316,10 @@ public partial class RagEduContext : DbContext
             entity.HasOne(d => d.UploadedByNavigation).WithMany(p => p.Documents)
                 .HasForeignKey(d => d.UploadedBy)
                 .HasConstraintName("FK__documents__uploa__5165187F");
+
+            entity.HasOne(d => d.DeletedByNavigation).WithMany()
+                .HasForeignKey(d => d.DeletedBy)
+                .HasConstraintName("FK__documents__deleted_by");
         });
 
         modelBuilder.Entity<Embedding>(entity =>
@@ -602,6 +613,17 @@ public partial class RagEduContext : DbContext
             entity.Property(e => e.Name)
                 .HasMaxLength(200)
                 .HasColumnName("name");
+
+            // Soft-delete fields
+            entity.Property(e => e.IsDeleted)
+                .HasDefaultValue(false)
+                .HasColumnName("is_deleted");
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+            entity.Property(e => e.DeletedBy).HasColumnName("deleted_by");
+
+            entity.HasOne(d => d.DeletedByNavigation).WithMany()
+                .HasForeignKey(d => d.DeletedBy)
+                .HasConstraintName("FK__subjects__deleted_by");
         });
 
         modelBuilder.Entity<TestQuestion>(entity =>

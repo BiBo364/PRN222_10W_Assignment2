@@ -241,7 +241,7 @@ public class UploadModel : PageModel
         var roleId = HttpContext.Session.GetInt32("RoleId");
         var userSubjectId = HttpContext.Session.GetInt32("SubjectId");
 
-        if (roleId == DocumentPermissions.TeacherRoleId)
+        if (roleId == DocumentPermissions.LecturerRoleId)
         {
             if (!userSubjectId.HasValue)
                 return null;
@@ -286,7 +286,7 @@ public class UploadModel : PageModel
     private string? GetSubjectAccessError()
     {
         var roleId = HttpContext.Session.GetInt32("RoleId");
-        if (roleId != DocumentPermissions.TeacherRoleId)
+        if (roleId != DocumentPermissions.LecturerRoleId)
             return null;
 
         var userSubjectId = HttpContext.Session.GetInt32("SubjectId");

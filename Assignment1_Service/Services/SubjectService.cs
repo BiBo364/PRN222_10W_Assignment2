@@ -59,8 +59,14 @@ public class SubjectService : ISubjectService
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name is required.", nameof(name));
 
-        if (await _subjectRepository.GetByCodeAsync(code) is not null)
-            throw new InvalidOperationException("Subject code already exists.");
+        var existingSubject = await _subjectRepository.GetByCodeAsync(code);
+        if (existingSubject is not null)
+        {
+            if (existingSubject.IsDeleted == true)
+                throw new InvalidOperationException("Mã môn học này đã tồn tại trong Thùng rác. Vui lòng khôi phục thay vì tạo mới.");
+            else
+                throw new InvalidOperationException("Mã môn học đã tồn tại trong hệ thống.");
+        }
 
         var subject = new Subject
         {
@@ -104,7 +110,12 @@ public class SubjectService : ISubjectService
 
         var existingWithCode = await _subjectRepository.GetByCodeAsync(code);
         if (existingWithCode is not null && existingWithCode.Id != id)
-            throw new InvalidOperationException("Subject code already exists.");
+        {
+            if (existingWithCode.IsDeleted == true)
+                throw new InvalidOperationException("Mã môn học này đã bị xóa và nằm trong Thùng rác. Vui lòng kiểm tra lại.");
+            else
+                throw new InvalidOperationException("Mã môn học đã tồn tại trong hệ thống.");
+        }
 
         subject.Code = code;
         subject.Name = name;
@@ -124,20 +135,52 @@ public class SubjectService : ISubjectService
 
     public async Task<(bool Success, string? Error)> DeleteSubjectAsync(int id)
     {
+        return await DeleteSubjectWithDocumentsAsync(id);
+    }
+
+    public async Task<(bool Success, string? Error)> DeleteSubjectWithDocumentsAsync(int id, int? deletedByUserId = null)
+    {
         var subject = await _subjectRepository.GetByIdWithDetailsAsync(id);
         if (subject is null)
             return (false, "Subject not found.");
 
-        if (subject.Documents.Any())
-            return (false, "Cannot delete subject because it has documents attached.");
-            
-        if (subject.Users.Any())
-             return (false, "Cannot delete subject because there are users assigned to it.");
+        var deletedAt = DateTime.Now;
+        foreach (var doc in subject.Documents)
+        {
+            doc.IsDeleted = true;
+            doc.DeletedAt = deletedAt;
+            doc.DeletedBy = deletedByUserId;
+        }
 
-        var deleted = await _subjectRepository.DeleteAsync(id);
-        if (!deleted)
-             return (false, "Failed to delete subject.");
+        subject.IsDeleted = true;
+        subject.DeletedAt = deletedAt;
+        subject.DeletedBy = deletedByUserId;
+        
+        await _subjectRepository.UpdateAsync(subject);
              
         return (true, null);
+    }
+
+    public async Task<List<SubjectListItemDto>> GetDeletedSubjectsAsync()
+    {
+        var subjects = await _subjectRepository.GetDeletedSubjectsAsync();
+
+        return subjects.Select(subject => new SubjectListItemDto
+        {
+            Id = subject.Id,
+            Code = subject.Code,
+            Name = subject.Name,
+            Description = subject.Description,
+            ChapterCount = subject.Chapters.Count,
+            DocumentCount = subject.Documents.Count,
+            IndexedDocumentCount = subject.Documents.Count(document => document.Status == "indexed"),
+            DeletedAt = subject.DeletedAt,
+            DeletedByName = subject.DeletedByNavigation?.FullName ?? subject.DeletedByNavigation?.Username
+        }).ToList();
+    }
+
+    public Task<bool> RestoreSubjectAsync(int id)
+    {
+        return _subjectRepository.RestoreSubjectAsync(id);
     }
 }

@@ -26,9 +26,25 @@ public static class ApiEndpoints
                 return Results.Forbid();
 
             var document = await documentService.GetDocumentByIdAsync(id);
+            if (document is null)
+                return Results.NotFound(new { message = "Document not found." });
+
+            if (!document.SubjectId.HasValue
+                || !DocumentPermissions.CanUploadToSubject(
+                    roleId.Value,
+                    httpContext.Session.GetInt32("SubjectId"),
+                    document.SubjectId.Value))
+            {
+                return Results.Forbid();
+            }
+
             var storageRoot = Path.Combine(environment.ContentRootPath, "uploads");
             var deleted = await documentService.DeleteDocumentAsync(
-                id, storageRoot, environment.ContentRootPath, environment.WebRootPath);
+                id,
+                storageRoot,
+                environment.ContentRootPath,
+                environment.WebRootPath,
+                httpContext.Session.GetInt32("UserId"));
 
             if (!deleted)
                 return Results.NotFound(new { message = "Document not found." });

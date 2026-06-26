@@ -12,7 +12,7 @@ namespace Assignmet1_Presentation.Pages.Subjects;
 // @page "/Subjects/Create"
 
 [RequireLogin]
-[RequireTeacher]
+[RequireAdmin]
 public class CreateModel : PageModel
 {
     private readonly ISubjectService _subjectService;

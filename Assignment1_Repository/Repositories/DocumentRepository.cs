@@ -20,6 +20,7 @@ public class DocumentRepository : IDocumentRepository
             .Include(d => d.Chapter)
             .Include(d => d.UploadedByNavigation)
             .Include(d => d.Chunks)
+            .Where(d => d.IsDeleted != true)
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync();
     }
@@ -31,7 +32,7 @@ public class DocumentRepository : IDocumentRepository
             .Include(d => d.Chapter)
             .Include(d => d.UploadedByNavigation)
             .Include(d => d.Chunks)
-            .FirstOrDefaultAsync(d => d.Id == id);
+            .FirstOrDefaultAsync(d => d.Id == id && d.IsDeleted != true);
     }
 
     public async Task<Document> AddDocumentAsync(Document document)
@@ -102,25 +103,45 @@ public class DocumentRepository : IDocumentRepository
     public async Task DeleteDocumentAsync(int id)
     {
         var document = await _context.Documents
-            .Include(d => d.Chunks)
-            .ThenInclude(c => c.Embeddings)
-            .FirstOrDefaultAsync(d => d.Id == id);
+            .FirstOrDefaultAsync(d => d.Id == id && d.IsDeleted != true);
 
         if (document is null)
             return;
 
-        var chunkIds = document.Chunks.Select(c => c.Id).ToList();
-        var citations = await _context.MessageCitations
-            .Where(c => chunkIds.Contains(c.ChunkId))
-            .ToListAsync();
-
-        _context.MessageCitations.RemoveRange(citations);
-
-        foreach (var chunk in document.Chunks)
-            _context.Embeddings.RemoveRange(chunk.Embeddings);
-
-        _context.Chunks.RemoveRange(document.Chunks);
-        _context.Documents.Remove(document);
+        document.IsDeleted = true;
+        document.DeletedAt = DateTime.Now;
+        // DeletedBy can be set in Service layer or left null if not provided
+        
+        _context.Documents.Update(document);
         await _context.SaveChangesAsync();
+    }
+
+    public Task<List<Document>> GetDeletedDocumentsAsync()
+    {
+        return _context.Documents
+            .Include(d => d.Subject)
+            .Include(d => d.Chapter)
+            .Include(d => d.UploadedByNavigation)
+            .Include(d => d.DeletedByNavigation)
+            .Where(d => d.IsDeleted == true)
+            .OrderByDescending(d => d.DeletedAt)
+            .ToListAsync();
+    }
+
+    public async Task<bool> RestoreDocumentAsync(int id)
+    {
+        var document = await _context.Documents
+            .FirstOrDefaultAsync(d => d.Id == id && d.IsDeleted == true);
+
+        if (document is null)
+            return false;
+
+        document.IsDeleted = false;
+        document.DeletedAt = null;
+        document.DeletedBy = null;
+
+        _context.Documents.Update(document);
+        await _context.SaveChangesAsync();
+        return true;
     }
 }

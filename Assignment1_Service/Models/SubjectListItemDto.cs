@@ -9,4 +9,6 @@ public class SubjectListItemDto
     public int ChapterCount { get; set; }
     public int DocumentCount { get; set; }
     public int IndexedDocumentCount { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public string? DeletedByName { get; set; }
 }
