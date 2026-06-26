@@ -46,7 +46,9 @@ public class DetailsModel : PageModel
         var viewModel = ViewModelMapper.ToDocumentDetailPage(document);
         viewModel.CanUpload = document.SubjectId.HasValue
             && DocumentPermissions.CanUploadToSubject(roleId, userSubjectId, document.SubjectId.Value);
-        viewModel.CanDelete = DocumentPermissions.CanDelete(roleId);
+        viewModel.CanDelete = document.SubjectId.HasValue
+            && DocumentPermissions.CanDelete(roleId)
+            && DocumentPermissions.CanUploadToSubject(roleId, userSubjectId, document.SubjectId.Value);
         viewModel.CanReindex = viewModel.CanUpload;
 
         ViewModel = viewModel;
@@ -85,20 +87,37 @@ public class DetailsModel : PageModel
     public async Task<IActionResult> OnPostDeleteAsync(int id)
     {
         var roleId = HttpContext.Session.GetInt32("RoleId");
-        if (roleId is null || !DocumentPermissions.CanDelete(roleId.Value))
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (roleId is null || userId is null || !DocumentPermissions.CanDelete(roleId.Value))
         {
             TempData["Error"] = "You do not have permission to delete documents.";
             return RedirectToPage("/Documents/Index");
         }
 
         var document = await _documentService.GetDocumentByIdAsync(id);
+        if (document is null)
+        {
+            TempData["Error"] = "Document not found.";
+            return RedirectToPage("/Documents/Index");
+        }
+
+        if (roleId.Value == DocumentPermissions.LecturerRoleId)
+        {
+            var userSubjectId = HttpContext.Session.GetInt32("SubjectId");
+            if (document.SubjectId != userSubjectId)
+            {
+                TempData["Error"] = "You can only delete documents from your assigned subject.";
+                return RedirectToPage("/Documents/Index");
+            }
+        }
+
         var paths = GetStoragePaths();
         var deleted = await _documentService.DeleteDocumentAsync(
-            id, paths.StorageRoot, paths.ContentRoot, paths.WebRoot);
+            id, paths.StorageRoot, paths.ContentRoot, paths.WebRoot, userId.Value);
 
         if (!deleted)
         {
-            TempData["Error"] = "Document not found.";
+            TempData["Error"] = "Document could not be deleted.";
             return RedirectToPage("/Documents/Index");
         }
 

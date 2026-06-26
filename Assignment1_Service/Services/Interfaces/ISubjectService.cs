@@ -9,4 +9,7 @@ public interface ISubjectService
     Task<SubjectDetailDto> CreateSubjectAsync(string code, string name, string? description = null);
     Task<SubjectDetailDto> UpdateSubjectAsync(int id, string code, string name, string? description = null);
     Task<(bool Success, string? Error)> DeleteSubjectAsync(int id);
+    Task<(bool Success, string? Error)> DeleteSubjectWithDocumentsAsync(int id, int? deletedByUserId = null);
+    Task<List<SubjectListItemDto>> GetDeletedSubjectsAsync();
+    Task<bool> RestoreSubjectAsync(int id);
 }

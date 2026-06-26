@@ -1,76 +1,106 @@
 @page "/Documents/Upload"
 @model Assignmet1_Presentation.Pages.Documents.UploadModel
 @{
-    ViewData["Title"] = "Upload document";
+    ViewData["Title"] = "Tai len tai lieu";
 }
 
-<section class="page-hero mb-4">
-    <div class="hero-badge mb-3">Upload</div>
-    <h1 class="page-title mb-2">Upload document</h1>
-    @if (Model.ViewModel.Subject is not null)
+<div class="d-flex flex-column gap-4">
+    <!-- ── HERO ──────────────────────────────────────────────────── -->
+    <div class="page-hero d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+        <div>
+            <div class="hero-badge mb-2">
+                <i data-lucide="upload" class="icon-sm text-primary"></i> Tai len
+            </div>
+            <h1 class="page-title mb-1">Tai len tai lieu moi</h1>
+            @if (Model.ViewModel.Subject is not null)
+            {
+                <p class="page-subtitle">Mon hoc: <strong class="text-primary">@Model.ViewModel.Subject.Code</strong> - @Model.ViewModel.Subject.Name</p>
+            }
+        </div>
+        <div class="d-flex gap-2 flex-shrink-0">
+            <a asp-page="/Documents/Index" class="btn btn-outline-secondary">
+                <i data-lucide="arrow-left" class="icon-sm"></i> Quay lai Thu vien
+            </a>
+        </div>
+    </div>
+
+    <!-- ── ALERTS ─────────────────────────────────────────────────── -->
+    @if (TempData["Error"] is string error)
     {
-        <p class="page-subtitle">Subject: <strong>@Model.ViewModel.Subject.Code</strong> - @Model.ViewModel.Subject.Name</p>
+        <div class="alert alert-danger mb-0" role="alert">
+            <i data-lucide="x-circle" class="alert-icon"></i> @error
+        </div>
     }
-</section>
 
-@if (TempData["Error"] is string error)
-{
-    <div class="alert alert-danger">@error</div>
-}
+    <div id="uploadError" class="alert alert-danger d-none mb-0" role="alert">
+        <i data-lucide="alert-triangle" class="alert-icon"></i> <span class="error-msg"></span>
+    </div>
+    <div id="uploadSuccess" class="alert alert-success d-none mb-0" role="alert">
+        <i data-lucide="check-circle-2" class="alert-icon"></i> <span class="success-msg"></span>
+    </div>
 
-<div id="uploadError" class="alert alert-danger d-none" role="alert"></div>
-<div id="uploadSuccess" class="alert alert-success d-none" role="alert"></div>
+    <!-- ── UPLOAD FORM ────────────────────────────────────────────── -->
+    <div class="surface-card p-4 mx-auto" style="max-width: 600px; width: 100%;">
+        <form id="uploadForm" method="post" enctype="multipart/form-data">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3" style="font-size:.85rem"></div>
 
-<div class="surface-card">
-    <form id="uploadForm" method="post" enctype="multipart/form-data">
-        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            <input asp-for="ViewModel.SubjectId" type="hidden" />
 
-        <input asp-for="ViewModel.SubjectId" type="hidden" />
-
-        @if (Model.ViewModel.Subject is not null)
-        {
-            <div class="alert alert-info">
-                Uploading to <strong>@Model.ViewModel.Subject.Code</strong> - @Model.ViewModel.Subject.Name.
-            </div>
-        }
-
-        <div class="mb-3">
-            <label asp-for="ViewModel.File" class="form-label"></label>
-            <input asp-for="ViewModel.File" class="form-control" accept=".pdf,.docx,.pptx" />
-            <div class="form-text">Supported: PDF, DOCX, PPTX (lecture slides).</div>
-            <span asp-validation-for="ViewModel.File" class="text-danger"></span>
-        </div>
-
-        @if (Model.ViewModel.ChapterOptions.Any())
-        {
-            <div class="mb-3">
-                <label asp-for="ViewModel.ChapterId" class="form-label"></label>
-                <select asp-for="ViewModel.ChapterId" asp-items="Model.ViewModel.ChapterOptions" class="form-select">
-                    <option value="">-- Select chapter --</option>
-                </select>
-                <span asp-validation-for="ViewModel.ChapterId" class="text-danger"></span>
-            </div>
-        }
-
-        <div id="uploadProgressPanel" class="upload-progress-panel d-none mb-4" aria-live="polite">
-            <div class="d-flex justify-content-between align-items-center gap-3 mb-2">
-                <div>
-                    <div class="small fw-semibold text-uppercase">Upload progress</div>
-                    <div id="uploadStatusText" class="page-subtitle small mb-0">Preparing your document...</div>
+            @if (Model.ViewModel.Subject is not null)
+            {
+                <div class="alert alert-info py-2 px-3 mb-4 d-flex align-items-center gap-2" style="font-size:.85rem">
+                    <i data-lucide="info" class="icon-sm flex-shrink-0"></i>
+                    <div>
+                        Dang tai len tai lieu cho mon hoc <strong>@Model.ViewModel.Subject.Code</strong>.
+                    </div>
                 </div>
-                <div id="uploadPercentText" class="upload-progress-value">0%</div>
+            }
+
+            <div class="mb-4">
+                <label asp-for="ViewModel.File" class="form-label fw-semibold">Tai lieu</label>
+                <div class="upload-zone position-relative border rounded p-4 text-center mb-1" style="background:var(--bg-alt);border-style:dashed!important;border-color:var(--surface-border)!important">
+                    <i data-lucide="file-up" style="width:48px;height:48px;color:var(--text-faint)" class="mb-3"></i>
+                    <h6 class="mb-1 fw-bold" style="color:var(--text)">Chon hoac keo tha file</h6>
+                    <p class="small text-muted mb-3">Ho tro: PDF, DOCX, PPTX</p>
+                    <input asp-for="ViewModel.File" class="form-control form-control-sm mx-auto" style="max-width: 300px;" accept=".pdf,.docx,.pptx" />
+                </div>
+                <span asp-validation-for="ViewModel.File" class="text-danger small"></span>
             </div>
 
-            <div class="progress upload-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated upload-progress-bar" style="width: 0%;"></div>
-            </div>
-        </div>
+            @if (Model.ViewModel.ChapterOptions.Any())
+            {
+                <div class="mb-4">
+                    <label asp-for="ViewModel.ChapterId" class="form-label fw-semibold">Chuong (Tuy chon)</label>
+                    <select asp-for="ViewModel.ChapterId" asp-items="Model.ViewModel.ChapterOptions" class="form-select form-select-lg">
+                        <option value="">-- Chon chuong --</option>
+                    </select>
+                    <span asp-validation-for="ViewModel.ChapterId" class="text-danger small"></span>
+                </div>
+            }
 
-        <div class="d-flex flex-wrap gap-2">
-            <button id="uploadSubmitButton" type="submit" class="btn btn-primary">Upload &amp; index</button>
-            <a asp-page="/Documents/Index" class="btn btn-outline-light">Back to subjects</a>
-        </div>
-    </form>
+            <div id="uploadProgressPanel" class="upload-progress-panel d-none mb-4 p-3 rounded" style="background:var(--bg-alt);border:1px solid var(--surface-border)" aria-live="polite">
+                <div class="d-flex justify-content-between align-items-center gap-3 mb-2">
+                    <div>
+                        <div class="small fw-semibold text-uppercase d-flex align-items-center" style="color:var(--primary)">
+                            <i data-lucide="loader-2" class="icon-sm me-2 spin"></i> Tien trinh tai len
+                        </div>
+                        <div id="uploadStatusText" class="page-subtitle small mb-0 mt-1">Dang chuan bi tai lieu...</div>
+                    </div>
+                    <div id="uploadPercentText" class="fs-4 text-primary fw-bold" style="font-feature-settings:'tnum'">0%</div>
+                </div>
+
+                <div class="progress upload-progress-track mt-3" style="height:6px;border-radius:100px;background:var(--surface-border)" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated upload-progress-bar bg-primary" style="border-radius:100px;width:0%"></div>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 pt-2 border-top" style="border-color:var(--surface-border)!important">
+                <button id="uploadSubmitButton" type="submit" class="btn btn-primary btn-lg">
+                    <i data-lucide="upload-cloud" class="icon-sm me-2"></i> Tai len &amp; Lap chi muc
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
 @section Scripts {
@@ -97,32 +127,22 @@
             let currentProgress = 0;
 
             const setError = (message) => {
-                if (!errorBox) {
-                    return;
-                }
-
+                if (!errorBox) return;
                 if (!message) {
-                    errorBox.textContent = "";
                     errorBox.classList.add("d-none");
                     return;
                 }
-
-                errorBox.textContent = message;
+                errorBox.querySelector('.error-msg').textContent = message;
                 errorBox.classList.remove("d-none");
             };
 
             const setSuccess = (message) => {
-                if (!successBox) {
-                    return;
-                }
-
+                if (!successBox) return;
                 if (!message) {
-                    successBox.textContent = "";
                     successBox.classList.add("d-none");
                     return;
                 }
-
-                successBox.textContent = message;
+                successBox.querySelector('.success-msg').textContent = message;
                 successBox.classList.remove("d-none");
             };
 
@@ -150,8 +170,7 @@
                         processingTimer = null;
                         return;
                     }
-
-                    setProgress(currentProgress + 1, "File uploaded. Extracting text and indexing the material...");
+                    setProgress(currentProgress + 1, "Da tai xong file. Dang trich xuat noi dung va lap chi muc...");
                 }, 300);
             };
 
@@ -165,15 +184,12 @@
                     event.preventDefault();
                     return;
                 }
-
                 event.preventDefault();
 
-                const file = fileInput.files && fileInput.files.length > 0
-                    ? fileInput.files[0]
-                    : null;
+                const file = fileInput.files && fileInput.files.length > 0 ? fileInput.files[0] : null;
 
                 if (!file) {
-                    setError("Please select a file before uploading.");
+                    setError("Vui long chon file truoc khi tai len.");
                     fileInput.focus();
                     return;
                 }
@@ -181,7 +197,7 @@
                 setError("");
                 setSuccess("");
                 currentProgress = 0;
-                setProgress(1, "Starting upload...");
+                setProgress(1, "Dang bat dau tai len...");
                 isPending = true;
                 submitButton.disabled = true;
 
@@ -192,23 +208,20 @@
 
                 xhr.upload.addEventListener("progress", (progressEvent) => {
                     if (!progressEvent.lengthComputable) {
-                        setProgress(18, "Uploading document to the server...");
+                        setProgress(18, "Dang tai tai lieu len may chu...");
                         return;
                     }
-
                     const uploadPercent = Math.round((progressEvent.loaded / progressEvent.total) * 72);
-                    setProgress(Math.max(uploadPercent, 5), "Uploading document to the server...");
+                    setProgress(Math.max(uploadPercent, 5), "Dang tai tai lieu len may chu...");
                 });
 
                 xhr.upload.addEventListener("load", () => {
-                    setProgress(76, "Upload completed. Waiting for indexing...");
+                    setProgress(76, "Da tai len hoan tat. Dang cho lap chi muc...");
                     startProcessingAnimation();
                 });
 
                 xhr.onreadystatechange = () => {
-                    if (xhr.readyState !== XMLHttpRequest.DONE) {
-                        return;
-                    }
+                    if (xhr.readyState !== XMLHttpRequest.DONE) return;
 
                     stopProcessingAnimation();
                     isPending = false;
@@ -222,8 +235,8 @@
                     }
 
                     if (xhr.status >= 200 && xhr.status < 300) {
-                        setProgress(100, "Upload and indexing completed successfully.");
-                        setSuccess(payload.message || "Document uploaded successfully.");
+                        setProgress(100, "Tai len va lap chi muc thanh cong.");
+                        setSuccess(payload.message || "Da tai len tai lieu thanh cong.");
 
                         const redirectUrl = payload.redirectUrl;
                         if (redirectUrl) {
@@ -231,24 +244,23 @@
                                 window.location.href = redirectUrl;
                             }, 900);
                         }
-
                         return;
                     }
 
-                    setProgress(Math.max(currentProgress, 1), "Upload failed.");
+                    setProgress(Math.max(currentProgress, 1), "Tai len that bai.");
                     progressBar.classList.remove("progress-bar-animated");
                     progressBar.classList.add("bg-danger");
-                    setError(payload.error || "Upload failed. Please try again.");
+                    setError(payload.error || "Tai len that bai. Vui long thu lai.");
                 };
 
                 xhr.onerror = () => {
                     stopProcessingAnimation();
                     isPending = false;
                     submitButton.disabled = false;
-                    setProgress(Math.max(currentProgress, 1), "Upload failed.");
+                    setProgress(Math.max(currentProgress, 1), "Tai len that bai.");
                     progressBar.classList.remove("progress-bar-animated");
                     progressBar.classList.add("bg-danger");
-                    setError("Unable to reach the server during upload.");
+                    setError("Khong the ket noi voi may chu trong qua trinh tai len.");
                 };
 
                 progressBar.classList.remove("bg-danger");

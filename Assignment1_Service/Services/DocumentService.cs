@@ -89,23 +89,29 @@ public class DocumentService : IDocumentService
         return created is null ? null : DtoMapper.ToDetailDto(created);
     }
 
-    public async Task<bool> DeleteDocumentAsync(int id, string storageRoot, string contentRoot, string webRoot)
+    public async Task<bool> DeleteDocumentAsync(int id, string storageRoot, string contentRoot, string webRoot, int? deletedByUserId = null)
     {
         var document = await _documentRepository.GetByIdWithDetailsAsync(id);
         if (document is null)
             return false;
 
-        var filePath = DocumentPathResolver.Resolve(document, storageRoot, contentRoot, webRoot);
-
-        if (document.FileType == "pptx")
-            SlideExtractor.DeleteSlideImages(document.Id, webRoot);
-
-        await _documentRepository.DeleteDocumentAsync(id);
-
-        if (filePath is not null && File.Exists(filePath))
-            File.Delete(filePath);
+        document.IsDeleted = true;
+        document.DeletedAt = DateTime.Now;
+        document.DeletedBy = deletedByUserId;
+        await _documentRepository.UpdateDocumentAsync(document);
 
         return true;
+    }
+
+    public async Task<List<DocumentListItemDto>> GetDeletedDocumentsAsync()
+    {
+        var docs = await _documentRepository.GetDeletedDocumentsAsync();
+        return docs.Select(DtoMapper.ToListItemDto).ToList();
+    }
+
+    public Task<bool> RestoreDocumentAsync(int id)
+    {
+        return _documentRepository.RestoreDocumentAsync(id);
     }
 
     public async Task<(DocumentUploadResultDto? Result, string? Error)> ReindexDocumentAsync(

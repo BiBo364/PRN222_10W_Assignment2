@@ -2,95 +2,106 @@
 @model Assignmet1_Presentation.Pages.Admin.IndexModel
 @using Assignmet1_Presentation.Models
 @{
-    ViewData["Title"] = "Quản lý người dùng";
+    ViewData["Title"] = "Quan ly nguoi dung";
+
+    var totalUsers   = Model.ViewModel.Users.Count;
+    var activeUsers  = Model.ViewModel.Users.Count(u => u.IsActive);
+    var lecturers    = Model.ViewModel.Users.Count(u => u.RoleId == 2);
+    var studentCount = Model.ViewModel.Users.Count(u => u.RoleId == 3);
+    var unassigned   = Model.ViewModel.Users.Count(u => u.RoleId == 2 && u.SubjectId == null);
 }
 
 <div class="d-flex flex-column gap-4">
 
-    @* ── HERO ──────────────────────────────────────────────── *@
+    <!-- ── HERO ──────────────────────────────────────────────────── -->
     <div class="page-hero d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
         <div>
-            <div class="hero-badge mb-2">⚙️ Quản trị hệ thống</div>
-            <h1 class="page-title mb-1">Quản lý người dùng</h1>
-            <p class="page-subtitle">Xem, phân công môn học và quản lý trạng thái tài khoản toàn hệ thống.</p>
+            <div class="hero-badge mb-2">
+                <i data-lucide="shield-check" class="icon-sm"></i> Quan tri he thong
+            </div>
+            <h1 class="page-title mb-1">Quan ly nguoi dung</h1>
+            <p class="page-subtitle">Xem, phan cong mon hoc va quan ly trang thai tai khoan toan he thong.</p>
         </div>
         <div class="d-flex gap-2 flex-shrink-0">
             <a asp-page="/Admin/ImportUsers" class="btn btn-primary">
-                📥 Import người dùng
+                <i data-lucide="file-up" class="icon-sm"></i> Import nguoi dung
             </a>
         </div>
     </div>
 
-    @* ── ALERT MESSAGES ───────────────────────────────────── *@
+    <!-- ── ALERT MESSAGES ────────────────────────────────────────── -->
     @if (TempData["Success"] is string success)
     {
-        <div class="alert alert-success d-flex align-items-center gap-2 mb-0" role="alert">
-            <span>✅</span> @success
+        <div class="alert alert-success mb-0" role="alert">
+            <i data-lucide="check-circle-2" class="alert-icon"></i> @success
         </div>
     }
     @if (TempData["Error"] is string error)
     {
-        <div class="alert alert-danger d-flex align-items-center gap-2 mb-0" role="alert">
-            <span>❌</span> @error
+        <div class="alert alert-danger mb-0" role="alert">
+            <i data-lucide="x-circle" class="alert-icon"></i> @error
         </div>
     }
 
-    @* ── STATS ROW ─────────────────────────────────────────── *@
-    @{
-        var totalUsers    = Model.ViewModel.Users.Count;
-        var activeUsers   = Model.ViewModel.Users.Count(u => u.IsActive);
-        var studentCount  = Model.ViewModel.Users.Count(u => u.RoleId == 4);
-        var unassigned    = Model.ViewModel.Users.Count(u => u.RoleId == 4 && u.SubjectId == null);
-    }
-    <div class="row g-3">
+    <!-- ── STATS ROW ──────────────────────────────────────────────── -->
+    <div class="row g-3 stagger-children">
         <div class="col-6 col-md-3">
             <div class="stat-card text-center">
-                <div class="stat-value text-info">@totalUsers</div>
-                <div class="stat-label">Tổng người dùng</div>
+                <div class="stat-value" style="background:var(--grad-cool);-webkit-background-clip:text;-webkit-text-fill-color:transparent">@totalUsers</div>
+                <div class="stat-label">Tong nguoi dung</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="stat-card text-center">
-                <div class="stat-value" style="color:#34d399">@activeUsers</div>
-                <div class="stat-label">Đang hoạt động</div>
+                <div class="stat-value" style="background:var(--grad-accent);-webkit-background-clip:text;-webkit-text-fill-color:transparent">@activeUsers</div>
+                <div class="stat-label">Dang hoat dong</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="stat-card text-center">
-                <div class="stat-value" style="color:#f6b73c">@studentCount</div>
-                <div class="stat-label">Sinh viên</div>
+                <div class="stat-value" style="background:var(--grad-primary);-webkit-background-clip:text;-webkit-text-fill-color:transparent">@lecturers</div>
+                <div class="stat-label">Giang vien</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="stat-card text-center">
-                <div class="stat-value" style="color:#f87171">@unassigned</div>
-                <div class="stat-label">Chưa có môn học</div>
+                <div class="stat-value" style="background:var(--grad-warm);-webkit-background-clip:text;-webkit-text-fill-color:transparent">@unassigned</div>
+                <div class="stat-label">GV chua co mon</div>
             </div>
         </div>
     </div>
 
-    @* ── FILTER / SEARCH ─────────────────────────────────── *@
+    <!-- ── FILTER / SEARCH ───────────────────────────────────────── -->
     <div class="surface-card">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <i data-lucide="filter" class="icon-sm" style="color:var(--primary)"></i>
+            <span class="fw-semibold" style="font-size:.9rem;color:var(--text-sec)">Bo loc va tim kiem</span>
+        </div>
         <form method="get" asp-page="/Admin/Index" class="row g-3 align-items-end">
             <div class="col-md-4">
-                <label class="form-label text-muted small fw-semibold">🔍 Tìm kiếm</label>
+                <label class="form-label">
+                    <i data-lucide="search" class="icon-sm"></i> Tim kiem
+                </label>
                 <input type="text" name="search" value="@Model.ViewModel.SearchTerm"
-                       class="form-control" placeholder="Tên, email, username…" />
+                       class="form-control" placeholder="Ten, email, username..." />
             </div>
             <div class="col-md-3">
-                <label class="form-label text-muted small fw-semibold">👤 Vai trò</label>
+                <label class="form-label">
+                    <i data-lucide="shield" class="icon-sm"></i> Vai tro
+                </label>
                 <select name="roleId" class="form-select">
-                    <option value="">Tất cả vai trò</option>
-                    <option value="1" selected="@(Model.ViewModel.FilterRoleId == 1)">SuperAdmin</option>
-                    <option value="2" selected="@(Model.ViewModel.FilterRoleId == 2)">Giảng viên</option>
-                    <option value="3" selected="@(Model.ViewModel.FilterRoleId == 3)">Người upload</option>
-                    <option value="4" selected="@(Model.ViewModel.FilterRoleId == 4)">Sinh viên</option>
+                    <option value="">Tat ca vai tro</option>
+                    <option value="1" selected="@(Model.ViewModel.FilterRoleId == 1)">Admin</option>
+                    <option value="2" selected="@(Model.ViewModel.FilterRoleId == 2)">Giang vien</option>
+                    <option value="3" selected="@(Model.ViewModel.FilterRoleId == 3)">Sinh vien</option>
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label text-muted small fw-semibold">📚 Môn học</label>
+                <label class="form-label">
+                    <i data-lucide="book-open" class="icon-sm"></i> Mon hoc
+                </label>
                 <select name="subjectId" class="form-select">
-                    <option value="">Tất cả môn học</option>
+                    <option value="">Tat ca mon hoc</option>
                     @foreach (var s in Model.ViewModel.Subjects)
                     {
                         <option value="@s.Id" selected="@(Model.ViewModel.FilterSubjectId == s.Id)">@s.Code — @s.Name</option>
@@ -98,23 +109,33 @@
                 </select>
             </div>
             <div class="col-md-2 d-flex gap-2">
-                <button type="submit" class="btn btn-primary flex-fill">Lọc</button>
-                <a asp-page="/Admin/Index" class="btn btn-outline-secondary flex-fill">Reset</a>
+                <button type="submit" class="btn btn-primary flex-fill">
+                    <i data-lucide="search" class="icon-sm"></i> Loc
+                </button>
+                <a asp-page="/Admin/Index" class="btn btn-outline-secondary flex-fill">
+                    <i data-lucide="rotate-ccw" class="icon-sm"></i>
+                </a>
             </div>
         </form>
     </div>
 
-    @* ── TABLE ────────────────────────────────────────────── *@
+    <!-- ── TABLE ─────────────────────────────────────────────────── -->
     <div class="surface-card p-0 overflow-hidden">
-        <div class="px-4 py-3 d-flex align-items-center justify-content-between" style="border-bottom:1px solid rgba(255,255,255,.08)">
-            <h2 class="h6 mb-0 fw-semibold">Danh sách người dùng (@Model.ViewModel.Users.Count)</h2>
+        <div class="card-header-row">
+            <h2 class="card-header-title">
+                <i data-lucide="users" class="icon-sm me-1" style="color:var(--primary)"></i>
+                Danh sach nguoi dung — @Model.ViewModel.Users.Count ket qua
+            </h2>
         </div>
 
         @if (Model.ViewModel.Users.Count == 0)
         {
-            <div class="text-center py-5 text-muted">
-                <div style="font-size:3rem">👥</div>
-                <p class="mt-2">Không tìm thấy người dùng nào phù hợp.</p>
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i data-lucide="users" style="width:56px;height:56px;color:var(--text-faint)"></i>
+                </div>
+                <div class="empty-state-title">Khong tim thay nguoi dung</div>
+                <div class="empty-state-desc">Thu thay doi bo loc de xem tat ca nguoi dung trong he thong.</div>
             </div>
         }
         else
@@ -123,134 +144,149 @@
                 <table class="table table-hover mb-0 align-middle" id="usersTable">
                     <thead>
                         <tr>
-                            <th class="ps-4">Người dùng</th>
-                            <th>Vai trò</th>
-                            <th>Môn học</th>
-                            <th>Trạng thái</th>
-                            <th>Đăng nhập lần cuối</th>
-                            <th class="pe-4 text-end">Hành động</th>
+                            <th class="ps-4">Nguoi dung</th>
+                            <th>Vai tro</th>
+                            <th>Mon hoc duoc phan cong</th>
+                            <th>Trang thai</th>
+                            <th>Dang nhap lan cuoi</th>
+                            <th class="pe-4 text-end">Hanh dong</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var user in Model.ViewModel.Users)
                         {
+                            string roleColor = "#64748b", roleIcon = "user", roleLbl = "Unknown";
+                                if (user.RoleId == 1) { roleColor = "#f59e0b"; roleIcon = "shield-check"; roleLbl = "Admin"; }
+                                else if (user.RoleId == 2) { roleColor = "#6366f1"; roleIcon = "graduation-cap"; roleLbl = "Giang vien"; }
+                                else if (user.RoleId == 3) { roleColor = "#10b981"; roleIcon = "user"; roleLbl = "Sinh vien"; }
+                                var initials = (user.FullName?.Length > 0
+                                    ? user.FullName[0]
+                                    : user.Username[0]).ToString().ToUpper();
                             <tr>
-                                @* Avatar + name + email *@
+                                <!-- Avatar + info -->
                                 <td class="ps-4">
                                     <div class="d-flex align-items-center gap-3">
-                                        <div class="user-avatar" style="width:38px;height:38px;border-radius:50%;
-                                            background:linear-gradient(135deg,#60a5fa,#2563eb);
-                                            display:flex;align-items:center;justify-content:center;
-                                            font-weight:700;font-size:.9rem;flex-shrink:0;">
-                                            @(user.FullName?.Length > 0 ? user.FullName[0].ToString().ToUpper() : user.Username[0].ToString().ToUpper())
+                                        <div class="user-avatar-circle" style="background:linear-gradient(135deg,@roleColor,@(roleColor)aa)">
+                                            @initials
                                         </div>
                                         <div>
-                                            <div class="fw-semibold" style="font-size:.9rem">@(user.FullName ?? user.Username)</div>
-                                            <div class="text-muted" style="font-size:.78rem">@user.Email</div>
-                                            <div style="font-size:.75rem;color:#64748b">@@user.Username</div>
+                                            <div class="fw-semibold" style="font-size:.9rem;color:var(--text)">
+                                                @(user.FullName ?? user.Username)
+                                            </div>
+                                            <div style="font-size:.78rem;color:var(--text-muted)">@user.Email</div>
+                                            <div style="font-size:.72rem;color:var(--text-faint)">@@@user.Username</div>
                                         </div>
                                     </div>
                                 </td>
 
-                                @* Role badge *@
+                                <!-- Role badge -->
                                 <td>
-                                    @{
-                                        var (roleColor, roleIcon) = user.RoleId switch {
-                                            1 => ("#fbbf24", "👑"),
-                                            2 => ("#f87171", "🛡️"),
-                                            3 => ("#34d399", "📖"),
-                                            _ => ("#60a5fa", "🎓")
-                                        };
-                                    }
-                                    <span class="status-chip" style="border-color:@(roleColor)22;background:@(roleColor)18;color:@(roleColor)">
-                                        @roleIcon @user.RoleLabel
+                                    <span class="role-badge" style="background:@(roleColor)18;border:1px solid @(roleColor)33;color:@roleColor">
+                                        <i data-lucide="@roleIcon" class="icon-xs"></i>
+                                        @roleLbl
                                     </span>
                                 </td>
 
-                                @* Subject assignment *@
+                                <!-- Subject assignment -->
                                 <td>
-                                    <div class="d-flex align-items-center gap-2">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
                                         @if (user.SubjectId.HasValue)
                                         {
-                                            <span class="status-chip" style="background:rgba(96,165,250,.1);border-color:rgba(96,165,250,.25);color:#93c5fd;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-                                                📚 @user.SubjectCode
+                                            <span class="status-chip primary" title="@user.SubjectName">
+                                                <i data-lucide="book-open" class="icon-xs"></i>
+                                                @user.SubjectCode
                                             </span>
+                                        }
+                                        else if (user.RoleId == 2)
+                                        {
+                                            <span style="color:var(--text-faint);font-size:.85rem">Chua phan cong</span>
                                         }
                                         else
                                         {
-                                            <span class="text-muted small">—</span>
+                                            <span style="color:var(--text-faint);font-size:.85rem">Khong ap dung</span>
                                         }
 
-                                        @* Assign subject dropdown *@
-                                        <div class="dropdown">
-                                            <button class="btn btn-outline-secondary btn-sm py-0 px-2"
-                                                    data-bs-toggle="dropdown" title="Phân công môn học"
-                                                    style="font-size:.75rem;border-radius:.5rem">⋯</button>
-                                            <ul class="dropdown-menu dropdown-menu-end" style="background:#0d172a;border:1px solid rgba(255,255,255,.1);min-width:220px">
-                                                <li><h6 class="dropdown-header" style="color:#94a3b8">Phân công môn học</h6></li>
-                                                <li>
-                                                    <form asp-page-handler="AssignSubject" method="post" class="px-3 pb-2">
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="userId" value="@user.Id" />
-                                                        <select name="subjectId" class="form-select form-select-sm mb-2" style="font-size:.82rem">
-                                                            <option value="">— Bỏ môn học —</option>
-                                                            @foreach (var s in Model.ViewModel.Subjects)
-                                                            {
-                                                                var isCurrentUserSubject = user.SubjectId == s.Id;
-                                                                Model.ViewModel.TeacherBySubjectId.TryGetValue(s.Id, out var assignedTeacher);
-                                                                var isTakenByOtherTeacher = user.RoleId == 2
-                                                                && assignedTeacher != null
-                                                                && !isCurrentUserSubject;
-                                                                <option value="@s.Id"
-                                                                        selected="@isCurrentUserSubject"
-                                                                        disabled="@isTakenByOtherTeacher">
-                                                                    @s.Code — @s.Name@(isTakenByOtherTeacher ? $" (đã gán: {assignedTeacher})" : "")
-                                                                </option>
-                                                            }
-                                                        </select>
-                                                        <button type="submit" class="btn btn-primary btn-sm w-100" style="font-size:.8rem;padding:.35rem">
-                                                            Lưu phân công
-                                                        </button>
-                                                    </form>
-                                                </li>
-                                            </ul>
-                                        </div>
+                                        @if (user.RoleId == 2)
+                                        {
+                                            <!-- Assign dropdown -->
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                        data-bs-toggle="dropdown" title="Phan cong mon hoc"
+                                                        style="height:24px;min-width:28px">
+                                                    <i data-lucide="chevrons-up-down" class="icon-xs"></i>
+                                                </button>
+                                                <ul class="dropdown-menu" style="min-width:240px">
+                                                    <li>
+                                                        <span class="dropdown-header" style="font-size:.72rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em">
+                                                            Phan cong mon hoc
+                                                        </span>
+                                                    </li>
+                                                    <li>
+                                                        <form asp-page-handler="AssignSubject" method="post" class="px-3 pb-2 pt-1">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="userId" value="@user.Id" />
+                                                            <select name="subjectId" class="form-select form-select-sm mb-2">
+                                                                <option value="">— Bo mon hoc —</option>
+                                                                @foreach (var s in Model.ViewModel.Subjects)
+                                                                {
+                                                                    var isCurrentUserSubject = user.SubjectId == s.Id;
+                                                                    Model.ViewModel.TeacherBySubjectId.TryGetValue(s.Id, out var assignedTeacher);
+                                                                    var isTakenByOther = assignedTeacher != null && !isCurrentUserSubject;
+                                                                    <option value="@s.Id"
+                                                                            selected="@isCurrentUserSubject"
+                                                                            disabled="@isTakenByOther">
+                                                                        @s.Code — @s.Name@(isTakenByOther ? $" (da gan: {assignedTeacher})" : "")
+                                                                    </option>
+                                                                }
+                                                            </select>
+                                                            <button type="submit" class="btn btn-primary btn-sm w-100">
+                                                                <i data-lucide="save" class="icon-sm"></i> Luu phan cong
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        }
                                     </div>
                                 </td>
 
-                                @* Active status *@
+                                <!-- Status -->
                                 <td>
                                     @if (user.IsActive)
                                     {
-                                        <span class="status-chip" style="background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.25);color:#6ee7b7">
-                                            ● Hoạt động
+                                        <span class="status-chip success">
+                                            <i data-lucide="check-circle" class="icon-xs"></i> Hoat dong
                                         </span>
                                     }
                                     else
                                     {
-                                        <span class="status-chip" style="background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.25);color:#fca5a5">
-                                            ○ Vô hiệu
+                                        <span class="status-chip danger">
+                                            <i data-lucide="ban" class="icon-xs"></i> Vo hieu
                                         </span>
                                     }
                                 </td>
 
-                                @* Last login *@
+                                <!-- Last login -->
                                 <td>
-                                    <span class="text-muted small">
-                                        @(user.LastLoginAt.HasValue ? user.LastLoginAt.Value.ToString("dd/MM/yyyy HH:mm") : "Chưa đăng nhập")
+                                    <span style="font-size:.82rem;color:var(--text-muted)">
+                                        @(user.LastLoginAt.HasValue
+                                            ? user.LastLoginAt.Value.ToString("dd/MM/yyyy HH:mm")
+                                            : "Chua dang nhap")
                                     </span>
                                 </td>
 
-                                @* Actions *@
+                                <!-- Actions -->
                                 <td class="pe-4 text-end">
                                     <form asp-page-handler="ToggleStatus" method="post" class="d-inline">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="userId" value="@user.Id" />
-                                        <button type="submit"
-                                                class="btn btn-sm @(user.IsActive ? "btn-outline-danger" : "btn-outline-success")"
-                                                style="font-size:.78rem;padding:.3rem .7rem;border-radius:.5rem"
-                                                onclick="return confirm('@(user.IsActive ? "Vô hiệu hoá" : "Kích hoạt") tài khoản @(user.FullName ?? user.Username)?')">
-                                            @(user.IsActive ? "🔒 Vô hiệu" : "✅ Kích hoạt")
+                                        <button type="button"
+                                                class="btn btn-sm @(user.IsActive ? "btn-outline-danger" : "btn-outline-success") btn-toggle-status"
+                                                data-action="@(user.IsActive ? "vo hieu hoa" : "kich hoat")"
+                                                data-name="@(user.FullName ?? user.Username)"
+                                                title="@(user.IsActive ? "Vo hieu hoa tai khoan" : "Kich hoat tai khoan")">
+                                            <i data-lucide="@(user.IsActive ? "lock" : "unlock")" class="icon-sm"></i>
+                                            @(user.IsActive ? "Vo hieu" : "Kich hoat")
                                         </button>
                                     </form>
                                 </td>
@@ -260,42 +296,50 @@
                 </table>
             </div>
 
+            <!-- Pagination -->
             @if (Model.ViewModel.TotalPages > 1)
             {
-                <div class="px-4 py-3 d-flex align-items-center justify-content-between border-top" style="border-color:rgba(255,255,255,.08)!important">
-                    <div class="text-muted small">
-                        Hiển thị @(Model.ViewModel.Users.Count > 0 ? (Model.ViewModel.CurrentPage - 1) * Model.ViewModel.PageSize + 1 : 0) - @((Model.ViewModel.CurrentPage - 1) * Model.ViewModel.PageSize + Model.ViewModel.Users.Count) trong số @Model.ViewModel.TotalItems kết quả
+                <div class="px-4 py-3 d-flex align-items-center justify-content-between flex-wrap gap-2"
+                     style="border-top:1px solid var(--surface-border)">
+                    <div style="font-size:.82rem;color:var(--text-muted)">
+                        Hien thi
+                        @((Model.ViewModel.CurrentPage - 1) * Model.ViewModel.PageSize + 1)
+                        &ndash;
+                        @((Model.ViewModel.CurrentPage - 1) * Model.ViewModel.PageSize + Model.ViewModel.Users.Count)
+                        trong @Model.ViewModel.TotalItems nguoi dung
                     </div>
-                    <nav>
+                    <nav aria-label="Phan trang">
                         <ul class="pagination pagination-sm mb-0">
                             <li class="page-item @(Model.ViewModel.CurrentPage == 1 ? "disabled" : "")">
-                                <a class="page-link bg-transparent border-secondary text-light" 
-                                   asp-page="/Admin/Index" 
+                                <a class="page-link"
+                                   asp-page="/Admin/Index"
                                    asp-route-page="@(Model.ViewModel.CurrentPage - 1)"
                                    asp-route-search="@Model.ViewModel.SearchTerm"
                                    asp-route-roleId="@Model.ViewModel.FilterRoleId"
-                                   asp-route-subjectId="@Model.ViewModel.FilterSubjectId">« Trước</a>
+                                   asp-route-subjectId="@Model.ViewModel.FilterSubjectId">
+                                    <i data-lucide="chevron-left" class="icon-xs"></i>
+                                </a>
                             </li>
-                            
                             @for (int i = 1; i <= Model.ViewModel.TotalPages; i++)
                             {
                                 <li class="page-item @(Model.ViewModel.CurrentPage == i ? "active" : "")">
-                                    <a class="page-link @(Model.ViewModel.CurrentPage == i ? "bg-primary border-primary text-white" : "bg-transparent border-secondary text-light")" 
-                                       asp-page="/Admin/Index" 
+                                    <a class="page-link"
+                                       asp-page="/Admin/Index"
                                        asp-route-page="@i"
                                        asp-route-search="@Model.ViewModel.SearchTerm"
                                        asp-route-roleId="@Model.ViewModel.FilterRoleId"
                                        asp-route-subjectId="@Model.ViewModel.FilterSubjectId">@i</a>
                                 </li>
                             }
-
                             <li class="page-item @(Model.ViewModel.CurrentPage == Model.ViewModel.TotalPages ? "disabled" : "")">
-                                <a class="page-link bg-transparent border-secondary text-light" 
-                                   asp-page="/Admin/Index" 
+                                <a class="page-link"
+                                   asp-page="/Admin/Index"
                                    asp-route-page="@(Model.ViewModel.CurrentPage + 1)"
                                    asp-route-search="@Model.ViewModel.SearchTerm"
                                    asp-route-roleId="@Model.ViewModel.FilterRoleId"
-                                   asp-route-subjectId="@Model.ViewModel.FilterSubjectId">Sau »</a>
+                                   asp-route-subjectId="@Model.ViewModel.FilterSubjectId">
+                                    <i data-lucide="chevron-right" class="icon-xs"></i>
+                                </a>
                             </li>
                         </ul>
                     </nav>
@@ -304,3 +348,55 @@
         }
     </div>
 </div>
+
+<!-- ── Modal: Confirm Toggle Status ──────────────────────────── -->
+<div class="modal fade" id="toggleStatusModal" tabindex="-1" aria-labelledby="toggleStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="toggleStatusModalLabel">
+                    <i data-lucide="alert-circle" class="icon-md me-2" style="color:var(--amber)"></i>
+                    Xac nhan thay doi
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Dong"></button>
+            </div>
+            <div class="modal-body" style="font-size:.9rem;color:var(--text-sec)">
+                Ban co chac muon <strong id="toggleActionNameBody"></strong> tai khoan
+                <strong id="toggleUserName" style="color:var(--primary)"></strong>?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Huy bo</button>
+                <button type="button" class="btn btn-primary" id="confirmToggleBtn">Xac nhan</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            let formToSubmit = null;
+            const modalEl = document.getElementById('toggleStatusModal');
+            const toggleModal = modalEl ? new bootstrap.Modal(modalEl) : null;
+
+            document.querySelectorAll('.btn-toggle-status').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    formToSubmit = e.target.closest('form');
+                    const action = btn.getAttribute('data-action');
+                    const name   = btn.getAttribute('data-name');
+                    document.getElementById('toggleActionNameBody').textContent = action;
+                    document.getElementById('toggleUserName').textContent = name;
+                    if (toggleModal) toggleModal.show();
+                });
+            });
+
+            const confirmBtn = document.getElementById('confirmToggleBtn');
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', () => {
+                    if (formToSubmit) formToSubmit.submit();
+                    if (toggleModal) toggleModal.hide();
+                });
+            }
+        });
+    </script>
+}

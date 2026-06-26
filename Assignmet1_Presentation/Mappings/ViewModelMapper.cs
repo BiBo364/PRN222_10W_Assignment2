@@ -70,7 +70,9 @@ public static class ViewModelMapper
         Description = dto.Description,
         ChapterCount = dto.ChapterCount,
         DocumentCount = dto.DocumentCount,
-        IndexedDocumentCount = dto.IndexedDocumentCount
+        IndexedDocumentCount = dto.IndexedDocumentCount,
+        DeletedAt = dto.DeletedAt,
+        DeletedByName = dto.DeletedByName
     };
 
     public static SubjectDetailViewModel ToViewModel(SubjectDetailDto dto) => new()
@@ -106,10 +108,13 @@ public static class ViewModelMapper
         ErrorMsg = dto.ErrorMsg,
         ChunkCount = dto.ChunkCount,
         SubjectId = dto.SubjectId,
+        SubjectCode = dto.SubjectCode,
         ChapterNumber = dto.ChapterNumber,
         ChapterTitle = dto.ChapterTitle,
         CreatedAt = dto.CreatedAt,
-        IndexedAt = dto.IndexedAt
+        IndexedAt = dto.IndexedAt,
+        DeletedAt = dto.DeletedAt,
+        DeletedByName = dto.DeletedByName
     };
 
     public static DocumentListItemViewModel ToListItemViewModel(DocumentDetailDto dto) => new()

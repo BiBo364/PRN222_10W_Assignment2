@@ -9,15 +9,14 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace Assignmet1_Presentation.Pages.Subjects;
 
-// @page "/Subjects/Manage"
 [RequireLogin]
 [RequireAdmin]
-public class ManageModel : PageModel
+public class RecycleModel : PageModel
 {
     private readonly ISubjectService _subjectService;
     private readonly IHubContext<AppHub> _appHub;
 
-    public ManageModel(ISubjectService subjectService, IHubContext<AppHub> appHub)
+    public RecycleModel(ISubjectService subjectService, IHubContext<AppHub> appHub)
     {
         _subjectService = subjectService;
         _appHub = appHub;
@@ -27,25 +26,28 @@ public class ManageModel : PageModel
 
     public async Task<IActionResult> OnGetAsync()
     {
-        var subjects = await _subjectService.GetSubjectsAsync();
+        var subjects = await _subjectService.GetDeletedSubjectsAsync();
         Subjects = subjects.Select(ViewModelMapper.ToViewModel).ToList();
         return Page();
     }
 
-    public async Task<IActionResult> OnPostDeleteAsync(int id)
+    public async Task<IActionResult> OnPostRestoreAsync(int id)
     {
-        var userId = HttpContext.Session.GetInt32("UserId");
-        var (success, error) = await _subjectService.DeleteSubjectWithDocumentsAsync(id, userId);
+        var success = await _subjectService.RestoreSubjectAsync(id);
         if (success)
         {
-            await _appHub.Clients.All.SendAsync("CourseDeleted", id);
-            TempData["Success"] = "Deleted subject successfully.";
+            var subject = await _subjectService.GetSubjectAsync(id);
+            if (subject is not null)
+            {
+                await _appHub.Clients.All.SendAsync("CourseCreated", ViewModelMapper.ToListItemViewModel(subject));
+            }
+            TempData["Success"] = "Khôi phục môn học thành công.";
         }
         else
         {
-            TempData["Error"] = error ?? "Error deleting subject.";
+            TempData["Error"] = "Lỗi khi khôi phục môn học.";
         }
 
-        return RedirectToPage("/Subjects/Manage");
+        return RedirectToPage("/Subjects/Recycle");
     }
 }

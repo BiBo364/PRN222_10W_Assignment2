@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Assignment1_Repository.Models;
@@ -35,6 +35,13 @@ public partial class Document
 
     public DateTime? IndexedAt { get; set; }
 
+    // Soft-delete fields
+    public bool? IsDeleted { get; set; } = false;
+
+    public DateTime? DeletedAt { get; set; }
+
+    public int? DeletedBy { get; set; }
+
     public virtual Chapter? Chapter { get; set; }
 
     public virtual ICollection<Chunk> Chunks { get; set; } = new List<Chunk>();
@@ -42,4 +49,6 @@ public partial class Document
     public virtual Subject? Subject { get; set; }
 
     public virtual User? UploadedByNavigation { get; set; }
+
+    public virtual User? DeletedByNavigation { get; set; }
 }
