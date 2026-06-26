@@ -19,7 +19,7 @@ public class DetailsModel : PageModel
         _subjectService = subjectService;
     }
 
-    public SubjectDetailViewModel ViewModel { get; private set; } = null!;
+    public SubjectDetailViewModel ViewModel { get; private set; } = new();
 
     public async Task<IActionResult> OnGetAsync(int id)
     {
@@ -38,11 +38,18 @@ public class DetailsModel : PageModel
             Documents = subject.Documents.Select(ViewModelMapper.ToViewModel).ToList(),
             CanCreateSubject = DocumentPermissions.CanManageSubjects(roleId),
             CanUploadDocument = DocumentPermissions.CanUploadToSubject(roleId, userSubjectId, id),
+            CanEditDocument = DocumentPermissions.CanUploadToSubject(roleId, userSubjectId, id),
             CanDeleteDocument = DocumentPermissions.CanDelete(roleId)
                 && DocumentPermissions.CanUploadToSubject(roleId, userSubjectId, id)
         };
 
         return Page();
+    }
+
+    public IActionResult OnPost(int id)
+    {
+        TempData["Error"] = "Thao tac khong hop le. Vui long thu lai.";
+        return RedirectToPage("/Subjects/Details", new { id });
     }
 
     private bool CanViewSubjects()

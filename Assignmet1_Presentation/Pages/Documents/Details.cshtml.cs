@@ -6,6 +6,7 @@ using Assignmet1_Presentation.Models;
 using Assignment1_Service.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Assignmet1_Presentation.Pages.Documents;
@@ -46,13 +47,46 @@ public class DetailsModel : PageModel
         var viewModel = ViewModelMapper.ToDocumentDetailPage(document);
         viewModel.CanUpload = document.SubjectId.HasValue
             && DocumentPermissions.CanUploadToSubject(roleId, userSubjectId, document.SubjectId.Value);
+        viewModel.CanEdit = viewModel.CanUpload;
         viewModel.CanDelete = document.SubjectId.HasValue
             && DocumentPermissions.CanDelete(roleId)
             && DocumentPermissions.CanUploadToSubject(roleId, userSubjectId, document.SubjectId.Value);
         viewModel.CanReindex = viewModel.CanUpload;
+        viewModel.ChapterOptions = await BuildChapterOptionsAsync(document.SubjectId, document.ChapterId);
 
         ViewModel = viewModel;
         return Page();
+    }
+
+    public async Task<IActionResult> OnPostUpdateAsync(int id, string originalName, int? chapterId)
+    {
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId is null)
+            return RedirectToPage("/Account/Login");
+
+        var document = await _documentService.GetDocumentByIdAsync(id);
+        if (document is null)
+        {
+            TempData["Error"] = "Khong tim thay tai lieu can cap nhat.";
+            return RedirectToPage("/Documents/Index");
+        }
+
+        var (updated, error) = await _documentService.UpdateDocumentMetadataAsync(
+            id,
+            originalName,
+            chapterId,
+            userId.Value);
+
+        if (updated is null)
+        {
+            TempData["Error"] = error ?? "Cap nhat tai lieu that bai.";
+            return RedirectToPage("/Documents/Details", new { id });
+        }
+
+        await BroadcastDocumentUpdatedAsync(updated.Id);
+        await BroadcastCourseUpdatedAsync(updated.SubjectId);
+        TempData["Success"] = $"Da cap nhat tai lieu: {updated.OriginalName}.";
+        return RedirectToPage("/Documents/Details", new { id });
     }
 
     public async Task<IActionResult> OnPostReindexAsync(int id)
@@ -84,47 +118,49 @@ public class DetailsModel : PageModel
         return RedirectToPage("/Documents/Details", new { id });
     }
 
-    public async Task<IActionResult> OnPostDeleteAsync(int id)
+    public async Task<IActionResult> OnPostDeleteAsync(int id, int? returnSubjectId = null)
     {
         var roleId = HttpContext.Session.GetInt32("RoleId");
         var userId = HttpContext.Session.GetInt32("UserId");
         if (roleId is null || userId is null || !DocumentPermissions.CanDelete(roleId.Value))
         {
-            TempData["Error"] = "You do not have permission to delete documents.";
-            return RedirectToPage("/Documents/Index");
+            TempData["Error"] = "Ban khong co quyen xoa tai lieu.";
+            return RedirectAfterDelete(returnSubjectId);
         }
 
         var document = await _documentService.GetDocumentByIdAsync(id);
         if (document is null)
         {
-            TempData["Error"] = "Document not found.";
-            return RedirectToPage("/Documents/Index");
+            TempData["Error"] = "Khong tim thay tai lieu can xoa.";
+            return RedirectAfterDelete(returnSubjectId);
         }
 
-        if (roleId.Value == DocumentPermissions.LecturerRoleId)
+        if (!document.SubjectId.HasValue
+            || !DocumentPermissions.CanUploadToSubject(
+                roleId.Value,
+                HttpContext.Session.GetInt32("SubjectId"),
+                document.SubjectId.Value))
         {
-            var userSubjectId = HttpContext.Session.GetInt32("SubjectId");
-            if (document.SubjectId != userSubjectId)
-            {
-                TempData["Error"] = "You can only delete documents from your assigned subject.";
-                return RedirectToPage("/Documents/Index");
-            }
+            TempData["Error"] = "Ban chi co the xoa tai lieu trong mon hoc duoc gan.";
+            return RedirectAfterDelete(returnSubjectId ?? document.SubjectId);
         }
 
+        var deletedDocumentName = document.OriginalName;
+        var deletedSubjectId = document.SubjectId;
         var paths = GetStoragePaths();
         var deleted = await _documentService.DeleteDocumentAsync(
             id, paths.StorageRoot, paths.ContentRoot, paths.WebRoot, userId.Value);
 
         if (!deleted)
         {
-            TempData["Error"] = "Document could not be deleted.";
-            return RedirectToPage("/Documents/Index");
+            TempData["Error"] = "Khong the xoa tai lieu. Vui long thu lai.";
+            return RedirectAfterDelete(returnSubjectId ?? document.SubjectId);
         }
 
         await BroadcastDocumentDeletedAsync(id);
-        await BroadcastCourseUpdatedAsync(document?.SubjectId);
-        TempData["Success"] = "Document deleted.";
-        return RedirectToPage("/Documents/Index");
+        await BroadcastCourseUpdatedAsync(deletedSubjectId);
+        TempData["Success"] = $"Da xoa mem tai lieu: {deletedDocumentName}. Ban co the khoi phuc trong Thung rac tai lieu.";
+        return RedirectAfterDelete(returnSubjectId ?? deletedSubjectId);
     }
 
     private bool CanViewDocuments()
@@ -157,6 +193,33 @@ public class DetailsModel : PageModel
     private Task BroadcastDocumentDeletedAsync(int documentId)
     {
         return _appHub.Clients.All.SendAsync("DocumentDeleted", documentId);
+    }
+
+    private async Task<List<SelectListItem>> BuildChapterOptionsAsync(int? subjectId, int? selectedChapterId)
+    {
+        if (!subjectId.HasValue)
+            return [];
+
+        var subject = await _subjectService.GetSubjectAsync(subjectId.Value);
+        if (subject is null)
+            return [];
+
+        return subject.Subject.Chapters
+            .OrderBy(chapter => chapter.Number)
+            .Select(chapter => new SelectListItem
+            {
+                Value = chapter.Id.ToString(),
+                Text = $"Ch.{chapter.Number}: {chapter.Title}",
+                Selected = selectedChapterId == chapter.Id
+            })
+            .ToList();
+    }
+
+    private IActionResult RedirectAfterDelete(int? subjectId)
+    {
+        return subjectId.HasValue
+            ? RedirectToPage("/Subjects/Details", new { id = subjectId.Value })
+            : RedirectToPage("/Documents/Index");
     }
 
     private (string StorageRoot, string ContentRoot, string WebRoot) GetStoragePaths()

@@ -109,6 +109,7 @@ public static class ViewModelMapper
         ChunkCount = dto.ChunkCount,
         SubjectId = dto.SubjectId,
         SubjectCode = dto.SubjectCode,
+        ChapterId = dto.ChapterId,
         ChapterNumber = dto.ChapterNumber,
         ChapterTitle = dto.ChapterTitle,
         CreatedAt = dto.CreatedAt,
@@ -126,6 +127,7 @@ public static class ViewModelMapper
         ErrorMsg = dto.ErrorMsg,
         ChunkCount = dto.Chunks.Count,
         SubjectId = dto.SubjectId,
+        ChapterId = dto.ChapterId,
         ChapterNumber = dto.ChapterNumber,
         ChapterTitle = dto.ChapterTitle,
         CreatedAt = dto.CreatedAt,
@@ -135,14 +137,16 @@ public static class ViewModelMapper
     public static DocumentDetailViewModel ToDocumentDetailPage(DocumentDetailDto dto)
     {
         var chunks = dto.Chunks.Select(ToViewModel).ToList();
-        var isSlideDeck = dto.FileType == "pptx";
+        var isSlideDeck = string.Equals(dto.FileType, "pptx", StringComparison.OrdinalIgnoreCase);
 
         return new DocumentDetailViewModel
         {
             Id = dto.Id,
+            SubjectId = dto.SubjectId,
             OriginalName = dto.OriginalName,
             FileType = dto.FileType,
             Status = dto.Status,
+            ChapterId = dto.ChapterId,
             ChapterNumber = dto.ChapterNumber,
             ChapterTitle = dto.ChapterTitle,
             UploadedByName = dto.UploadedByName,

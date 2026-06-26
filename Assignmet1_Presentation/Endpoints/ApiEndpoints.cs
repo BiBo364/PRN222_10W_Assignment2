@@ -23,7 +23,7 @@ public static class ApiEndpoints
         {
             var roleId = httpContext.Session.GetInt32("RoleId");
             if (roleId is null || !DocumentPermissions.CanDelete(roleId.Value))
-                return Results.Forbid();
+                return Results.Json(new { message = "Ban khong co quyen xoa tai lieu." }, statusCode: StatusCodes.Status403Forbidden);
 
             var document = await documentService.GetDocumentByIdAsync(id);
             if (document is null)
@@ -35,9 +35,11 @@ public static class ApiEndpoints
                     httpContext.Session.GetInt32("SubjectId"),
                     document.SubjectId.Value))
             {
-                return Results.Forbid();
+                return Results.Json(new { message = "Ban chi co the xoa tai lieu trong mon hoc duoc gan." }, statusCode: StatusCodes.Status403Forbidden);
             }
 
+            var deletedDocumentName = document.OriginalName;
+            var deletedSubjectId = document.SubjectId;
             var storageRoot = Path.Combine(environment.ContentRootPath, "uploads");
             var deleted = await documentService.DeleteDocumentAsync(
                 id,
@@ -50,7 +52,7 @@ public static class ApiEndpoints
                 return Results.NotFound(new { message = "Document not found." });
 
             await appHub.Clients.All.SendAsync("DocumentDeleted", id);
-            if (document?.SubjectId is int subjectId)
+            if (deletedSubjectId is int subjectId)
             {
                 var subjectService = httpContext.RequestServices.GetRequiredService<ISubjectService>();
                 var subject = await subjectService.GetSubjectAsync(subjectId);
@@ -58,7 +60,7 @@ public static class ApiEndpoints
                     await appHub.Clients.All.SendAsync("CourseUpdated", ViewModelMapper.ToListItemViewModel(subject));
             }
 
-            return Results.NoContent();
+            return Results.Ok(new { message = $"Da xoa mem tai lieu: {deletedDocumentName}." });
         });
 
         app.MapPost("/api/subjects", async (

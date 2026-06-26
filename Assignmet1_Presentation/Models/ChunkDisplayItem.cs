@@ -32,6 +32,21 @@ public class ChunkDisplayItem
 
     private static List<ChunkDisplayItem> BuildSlideItems(IReadOnlyList<ChunkViewModel> chunks)
     {
+        var resolvedSlideNumbers = chunks
+            .Select(ResolveSlideNumber)
+            .Where(number => number.HasValue)
+            .Select(number => number!.Value)
+            .Distinct()
+            .Count();
+
+        if (chunks.Count > 1 && resolvedSlideNumbers <= 1)
+        {
+            return chunks
+                .OrderBy(chunk => chunk.ChunkIndex)
+                .Select((chunk, index) => BuildSlideItem([chunk], index, index + 1))
+                .ToList();
+        }
+
         return chunks
             .GroupBy(chunk => ResolveSlideNumber(chunk) ?? chunk.ChunkIndex + 1)
             .OrderBy(group => group.Key)
@@ -41,43 +56,55 @@ public class ChunkDisplayItem
                     .OrderBy(chunk => chunk.ChunkIndex)
                     .ToList();
 
-                var imageUrls = groupChunks
-                    .Select(chunk => SlideChunkMetadata.FromJson(chunk.Metadata))
-                    .Where(metadata => metadata is not null)
-                    .SelectMany(metadata => metadata!.ImageUrls)
-                    .Where(url => !string.IsNullOrWhiteSpace(url))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
                 var slideNumber = NormalizeNumber(group.Key) ?? index + 1;
-                var content = MergeChunkContent(groupChunks);
-
-                return new ChunkDisplayItem
-                {
-                    Chunk = groupChunks[0],
-                    Chunks = groupChunks,
-                    IsSlide = true,
-                    DisplayIndex = index + 1,
-                    SlideNumber = slideNumber,
-                    PageNumber = slideNumber,
-                    Content = content,
-                    TokenCount = CountTokens(content),
-                    ImageUrls = imageUrls
-                };
+                return BuildSlideItem(groupChunks, index, slideNumber);
             })
             .ToList();
     }
 
+    private static ChunkDisplayItem BuildSlideItem(IReadOnlyList<ChunkViewModel> groupChunks, int index, int slideNumber)
+    {
+        var imageUrls = groupChunks
+            .Select(chunk => SlideChunkMetadata.FromJson(chunk.Metadata))
+            .Where(metadata => metadata is not null)
+            .SelectMany(metadata => metadata!.ImageUrls)
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var content = MergeChunkContent(groupChunks);
+
+        return new ChunkDisplayItem
+        {
+            Chunk = groupChunks[0],
+            Chunks = groupChunks,
+            IsSlide = true,
+            DisplayIndex = index + 1,
+            SlideNumber = slideNumber,
+            PageNumber = slideNumber,
+            Content = content,
+            TokenCount = CountTokens(content),
+            ImageUrls = imageUrls
+        };
+    }
+
     private static List<ChunkDisplayItem> BuildPageItems(IReadOnlyList<ChunkViewModel> chunks)
     {
-        // N?u KHÔNG có chunk nào có PageNumber -> m?i chunk là 1 "?o?n" riêng (group theo ChunkIndex)
-        var hasPageNumbers = chunks.Any(chunk => NormalizeNumber(chunk.PageNumber).HasValue);
+        var distinctPageNumbers = chunks
+            .Select(chunk => NormalizeNumber(chunk.PageNumber))
+            .Where(number => number.HasValue)
+            .Select(number => number!.Value)
+            .Distinct()
+            .Count();
+
+        // DOCX files often index all chunks as page 1; keep those chunks split for readability.
+        var shouldGroupByPage = distinctPageNumbers > 1;
 
         return chunks
-            .GroupBy(chunk => hasPageNumbers
+            .GroupBy(chunk => shouldGroupByPage
                 ? (NormalizeNumber(chunk.PageNumber) ?? 0)
-                : chunk.ChunkIndex) // fallback: m?i chunk thành 1 group riêng
-            .OrderBy(group => group.Key == 0 && hasPageNumbers ? int.MaxValue : group.Key)
+                : chunk.ChunkIndex)
+            .OrderBy(group => group.Key == 0 && shouldGroupByPage ? int.MaxValue : group.Key)
             .ThenBy(group => group.Min(chunk => chunk.ChunkIndex))
             .Select((group, index) =>
             {
@@ -93,7 +120,7 @@ public class ChunkDisplayItem
                     Chunks = groupChunks,
                     IsSlide = false,
                     DisplayIndex = index + 1,
-                    PageNumber = hasPageNumbers ? NormalizeNumber(group.Key) : null,
+                    PageNumber = shouldGroupByPage ? NormalizeNumber(group.Key) : null,
                     Content = content,
                     TokenCount = CountTokens(content),
                     ImageUrls = []

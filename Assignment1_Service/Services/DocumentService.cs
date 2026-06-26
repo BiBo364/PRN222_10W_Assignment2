@@ -42,6 +42,12 @@ public class DocumentService : IDocumentService
         return document is null ? null : DtoMapper.ToDetailDto(document);
     }
 
+    public async Task<DocumentDetailDto?> GetDeletedDocumentByIdAsync(int id)
+    {
+        var document = await _documentRepository.GetDeletedByIdWithDetailsAsync(id);
+        return document is null ? null : DtoMapper.ToDetailDto(document);
+    }
+
     public async Task<DocumentDetailDto?> CreateDocumentEntryAsync(
         string originalName,
         string fileType,
@@ -52,6 +58,7 @@ public class DocumentService : IDocumentService
         if (string.IsNullOrWhiteSpace(originalName))
             throw new ArgumentException("Original name is required.", nameof(originalName));
 
+        var normalizedOriginalName = Path.GetFileName(originalName).Trim();
         fileType = fileType.Trim().ToLowerInvariant();
         if (fileType is not ("pdf" or "docx" or "pptx"))
             throw new ArgumentException("Unsupported file type.", nameof(fileType));
@@ -66,12 +73,15 @@ public class DocumentService : IDocumentService
         if (chapterId.HasValue && subject.Chapters.All(chapter => chapter.Id != chapterId.Value))
             throw new InvalidOperationException("Selected chapter does not belong to the selected subject.");
 
+        if (await _documentRepository.ExistsActiveDocumentNameAsync(subject.Id, normalizedOriginalName))
+            throw new InvalidOperationException("Tai lieu nay da ton tai trong mon hoc nay.");
+
         var document = new Document
         {
             SubjectId = subject.Id,
             ChapterId = chapterId,
             Filename = $"manual_{Guid.NewGuid():N}.{fileType}",
-            OriginalName = originalName.Trim(),
+            OriginalName = normalizedOriginalName,
             FileType = fileType,
             FileSize = null,
             FileHash = null,
@@ -87,6 +97,50 @@ public class DocumentService : IDocumentService
         document = await _documentRepository.AddDocumentAsync(document);
         var created = await _documentRepository.GetByIdWithDetailsAsync(document.Id);
         return created is null ? null : DtoMapper.ToDetailDto(created);
+    }
+
+    public async Task<(DocumentDetailDto? Document, string? Error)> UpdateDocumentMetadataAsync(
+        int id,
+        string originalName,
+        int? chapterId,
+        int userId)
+    {
+        var document = await _documentRepository.GetByIdWithDetailsAsync(id);
+        if (document is null)
+            return (null, "Khong tim thay tai lieu.");
+
+        if (!document.SubjectId.HasValue)
+            return (null, "Tai lieu nay chua gan mon hoc.");
+
+        var (allowed, accessError) = await ValidateUploaderSubjectAccessAsync(userId, document.SubjectId.Value);
+        if (!allowed)
+            return (null, accessError);
+
+        var subject = await _subjectRepository.GetByIdWithDetailsAsync(document.SubjectId.Value);
+        if (subject is null)
+            return (null, "Mon hoc cua tai lieu khong ton tai.");
+
+        if (chapterId.HasValue && subject.Chapters.All(chapter => chapter.Id != chapterId.Value))
+            return (null, "Chuong duoc chon khong thuoc mon hoc nay.");
+
+        var normalizedOriginalName = Path.GetFileName(originalName).Trim();
+        if (string.IsNullOrWhiteSpace(normalizedOriginalName))
+            return (null, "Ten tai lieu khong duoc de trong.");
+
+        if (await _documentRepository.ExistsActiveDocumentNameAsync(
+                document.SubjectId.Value,
+                normalizedOriginalName,
+                document.Id))
+        {
+            return (null, "Da co tai lieu cung ten trong mon hoc nay.");
+        }
+
+        document.OriginalName = normalizedOriginalName;
+        document.ChapterId = chapterId;
+        await _documentRepository.UpdateDocumentAsync(document);
+
+        var updated = await _documentRepository.GetByIdWithDetailsAsync(document.Id);
+        return updated is null ? (null, "Khong tim thay tai lieu sau khi cap nhat.") : (DtoMapper.ToDetailDto(updated), null);
     }
 
     public async Task<bool> DeleteDocumentAsync(int id, string storageRoot, string contentRoot, string webRoot, int? deletedByUserId = null)
@@ -109,9 +163,26 @@ public class DocumentService : IDocumentService
         return docs.Select(DtoMapper.ToListItemDto).ToList();
     }
 
-    public Task<bool> RestoreDocumentAsync(int id)
+    public async Task<(bool Success, string? Error)> RestoreDocumentAsync(int id)
     {
-        return _documentRepository.RestoreDocumentAsync(id);
+        var document = await _documentRepository.GetDeletedByIdWithDetailsAsync(id);
+        if (document is null)
+            return (false, "Khong tim thay tai lieu trong thung rac.");
+
+        if (!document.SubjectId.HasValue)
+            return (false, "Tai lieu nay chua gan mon hoc.");
+
+        if (await _documentRepository.ExistsActiveDocumentNameAsync(document.SubjectId.Value, document.OriginalName))
+            return (false, "Da co tai lieu cung ten trong mon hoc nay.");
+
+        if (!string.IsNullOrWhiteSpace(document.FileHash)
+            && await _documentRepository.ExistsActiveDocumentHashAsync(document.SubjectId.Value, document.FileHash))
+        {
+            return (false, "Noi dung tai lieu nay da ton tai trong mon hoc nay.");
+        }
+
+        var restored = await _documentRepository.RestoreDocumentAsync(id);
+        return restored ? (true, null) : (false, "Khong the khoi phuc tai lieu.");
     }
 
     public async Task<(DocumentUploadResultDto? Result, string? Error)> ReindexDocumentAsync(
@@ -178,6 +249,8 @@ public class DocumentService : IDocumentService
         if (!TextExtractor.IsAllowedExtension(originalFileName))
             return (null, "Only PDF, DOCX, and PPTX files are supported.");
 
+        var normalizedOriginalName = Path.GetFileName(originalFileName).Trim();
+
         var (allowed, accessError) = await ValidateUploaderSubjectAccessAsync(userId, subjectId);
         if (!allowed)
             return (null, accessError);
@@ -189,10 +262,13 @@ public class DocumentService : IDocumentService
         if (chapterId.HasValue && subject.Chapters.All(chapter => chapter.Id != chapterId.Value))
             return (null, "Selected chapter does not belong to the selected subject.");
 
+        if (await _documentRepository.ExistsActiveDocumentNameAsync(subjectId, normalizedOriginalName))
+            return (null, "Tai lieu nay da ton tai trong mon hoc nay.");
+
         Directory.CreateDirectory(storageRoot);
 
-        var fileType = TextExtractor.GetFileType(originalFileName);
-        var storedFileName = $"{Guid.NewGuid():N}_{Path.GetFileName(originalFileName)}";
+        var fileType = TextExtractor.GetFileType(normalizedOriginalName);
+        var storedFileName = $"{Guid.NewGuid():N}_{normalizedOriginalName}";
         var storagePath = Path.Combine(storageRoot, storedFileName);
 
         string fileHash;
@@ -205,12 +281,18 @@ public class DocumentService : IDocumentService
             fileHash = Convert.ToHexString(sha256.Hash!);
         }
 
+        if (await _documentRepository.ExistsActiveDocumentHashAsync(subjectId, fileHash))
+        {
+            DeleteStoredFileQuietly(storagePath);
+            return (null, "Noi dung tai lieu nay da ton tai trong mon hoc nay.");
+        }
+
         var document = new Document
         {
             SubjectId = subjectId,
             ChapterId = chapterId,
             Filename = storedFileName,
-            OriginalName = originalFileName,
+            OriginalName = normalizedOriginalName,
             FileType = fileType,
             FileSize = fileSize,
             FileHash = fileHash,
@@ -234,6 +316,19 @@ public class DocumentService : IDocumentService
             document.ErrorMsg = ex.Message;
             await _documentRepository.UpdateDocumentAsync(document);
             return (null, ex.Message);
+        }
+    }
+
+    private void DeleteStoredFileQuietly(string storagePath)
+    {
+        try
+        {
+            if (File.Exists(storagePath))
+                File.Delete(storagePath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not delete duplicate upload file {StoragePath}.", storagePath);
         }
     }
 
@@ -337,6 +432,7 @@ public class DocumentService : IDocumentService
             {
                 Type = "slide",
                 SlideNumber = slide.SlideNumber,
+                PageNumber = slide.SlideNumber,
                 ImageUrls = slide.ImageUrls
             };
 

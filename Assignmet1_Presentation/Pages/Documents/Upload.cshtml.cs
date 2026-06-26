@@ -129,12 +129,12 @@ public class UploadModel : PageModel
             return new JsonResult(new
             {
                 message = $"Uploaded and indexed: {result.OriginalName}",
-                redirectUrl = Url.Page("/Documents/Index")
+                redirectUrl = Url.Page("/Subjects/Details", new { id = ViewModel.SubjectId.Value })
             });
         }
 
         TempData["Success"] = $"Uploaded and indexed: {result.OriginalName}";
-        return RedirectToPage("/Documents/Index");
+        return RedirectToPage("/Subjects/Details", new { id = ViewModel.SubjectId.Value });
     }
 
     private bool CanViewDocuments()

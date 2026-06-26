@@ -95,6 +95,8 @@ body.app-body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background-color: var(--bg);
   background-image:
     radial-gradient(ellipse at 0% 0%,   rgba(99, 102, 241, 0.12) 0%, transparent 50%),
@@ -115,6 +117,8 @@ a:hover { color: var(--primary-dk); }
   position: sticky;
   top: 0;
   z-index: 1050;
+  width: 100%;
+  flex: 0 0 auto;
   backdrop-filter: blur(24px) saturate(1.8);
   -webkit-backdrop-filter: blur(24px) saturate(1.8);
 }
@@ -127,7 +131,12 @@ a:hover { color: var(--primary-dk); }
   transition: var(--transition-base);
 }
 
-.app-shell { max-width: 1360px; }
+.container.app-shell {
+  width: 100%;
+  max-width: none;
+  padding-left: clamp(1rem, 2.5vw, 2.5rem);
+  padding-right: clamp(1rem, 2.5vw, 2.5rem);
+}
 
 /* Brand */
 .app-brand {
@@ -255,10 +264,16 @@ a:hover { color: var(--primary-dk); }
 }
 
 /* ── Main content ─────────────────────────────────────────── */
-.app-main { padding: 2.5rem 0 5rem; }
+.app-main {
+  flex: 1 0 auto;
+  width: 100%;
+  padding: 2rem 0 4rem;
+}
 
 /* ── Footer ───────────────────────────────────────────────── */
 .app-footer {
+  width: 100%;
+  flex: 0 0 auto;
   background: rgba(255, 255, 255, 0.6);
   border-top: 1px solid var(--surface-border);
   padding: 1.25rem 0;
@@ -269,6 +284,18 @@ a:hover { color: var(--primary-dk); }
 }
 .app-footer a { color: var(--text-muted); }
 .app-footer a:hover { color: var(--primary); }
+
+@media (max-width: 767.98px) {
+  .container.app-shell {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+
+  .app-main {
+    padding-top: 1.25rem;
+    padding-bottom: 2.5rem;
+  }
+}
 
 /* ── Cards & Surfaces ─────────────────────────────────────── */
 .surface-card,

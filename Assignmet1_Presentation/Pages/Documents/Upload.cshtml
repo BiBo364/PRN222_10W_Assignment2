@@ -25,12 +25,6 @@
     </div>
 
     <!-- ── ALERTS ─────────────────────────────────────────────────── -->
-    @if (TempData["Error"] is string error)
-    {
-        <div class="alert alert-danger mb-0" role="alert">
-            <i data-lucide="x-circle" class="alert-icon"></i> @error
-        </div>
-    }
 
     <div id="uploadError" class="alert alert-danger d-none mb-0" role="alert">
         <i data-lucide="alert-triangle" class="alert-icon"></i> <span class="error-msg"></span>
@@ -236,14 +230,16 @@
 
                     if (xhr.status >= 200 && xhr.status < 300) {
                         setProgress(100, "Tai len va lap chi muc thanh cong.");
-                        setSuccess(payload.message || "Da tai len tai lieu thanh cong.");
 
                         const redirectUrl = payload.redirectUrl;
                         if (redirectUrl) {
                             window.setTimeout(() => {
                                 window.location.href = redirectUrl;
                             }, 900);
+                            return;
                         }
+
+                        setSuccess(payload.message || "Da tai len tai lieu thanh cong.");
                         return;
                     }
 

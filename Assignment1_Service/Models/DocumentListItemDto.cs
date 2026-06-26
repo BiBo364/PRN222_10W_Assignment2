@@ -10,6 +10,7 @@ public class DocumentListItemDto
     public int ChunkCount { get; set; }
     public int? SubjectId { get; set; }
     public string? SubjectCode { get; set; }
+    public int? ChapterId { get; set; }
     public int? ChapterNumber { get; set; }
     public string? ChapterTitle { get; set; }
     public DateTime? CreatedAt { get; set; }

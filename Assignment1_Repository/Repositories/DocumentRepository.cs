@@ -35,6 +35,36 @@ public class DocumentRepository : IDocumentRepository
             .FirstOrDefaultAsync(d => d.Id == id && d.IsDeleted != true);
     }
 
+    public Task<Document?> GetDeletedByIdWithDetailsAsync(int id)
+    {
+        return _context.Documents
+            .Include(d => d.Subject)
+            .Include(d => d.Chapter)
+            .Include(d => d.UploadedByNavigation)
+            .Include(d => d.DeletedByNavigation)
+            .Include(d => d.Chunks)
+            .FirstOrDefaultAsync(d => d.Id == id && d.IsDeleted == true);
+    }
+
+    public Task<bool> ExistsActiveDocumentNameAsync(int subjectId, string originalName, int? excludedDocumentId = null)
+    {
+        var normalizedName = originalName.Trim().ToLower();
+
+        return _context.Documents.AnyAsync(d =>
+            d.SubjectId == subjectId
+            && d.IsDeleted != true
+            && (!excludedDocumentId.HasValue || d.Id != excludedDocumentId.Value)
+            && d.OriginalName.ToLower() == normalizedName);
+    }
+
+    public Task<bool> ExistsActiveDocumentHashAsync(int subjectId, string fileHash)
+    {
+        return _context.Documents.AnyAsync(d =>
+            d.SubjectId == subjectId
+            && d.IsDeleted != true
+            && d.FileHash == fileHash);
+    }
+
     public async Task<Document> AddDocumentAsync(Document document)
     {
         _context.Documents.Add(document);

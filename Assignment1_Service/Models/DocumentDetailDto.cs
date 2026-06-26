@@ -8,6 +8,7 @@ public class DocumentDetailDto
     public string FileType { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string? ErrorMsg { get; set; }
+    public int? ChapterId { get; set; }
     public int? ChapterNumber { get; set; }
     public string? ChapterTitle { get; set; }
     public string? UploadedByName { get; set; }
